@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/examples/bbs.html");
-  await expect(page.locator("#count")).toHaveText("0");
+  await expect(page.locator("#source")).toHaveValue(/mount\(APP, "view"\)/);
 });
 
 async function startApp(page) {
@@ -69,7 +69,7 @@ test("a failed editor run preserves the previous app", async ({ page }) => {
 
 test("a successful editor run shows feedback and applies the edited source", async ({ page }) => {
   const source = await page.locator("#source").inputValue();
-  await page.locator("#source").fill(source.replace("$count = 0;", "$count = 7;"));
+  await page.locator("#source").fill(source.replace("text($#messages + 1)", "text(7)"));
   await page.locator("#run").click();
 
   await expect(page.locator("#run-status")).toHaveText("Run 1 complete");
@@ -92,13 +92,6 @@ test("shows STDOUT and resets preview state when the new program leaves the DOM 
   await expect(page.locator("#run-status")).toHaveText("Run 2 complete");
   await expect(page.locator("#stdout")).toHaveText("hoge");
   await expect(page.locator("#stdout-state")).toHaveText("Output");
-  await expect(page.locator("#count")).toHaveText("0");
-  await expect(page.locator("#posts")).toBeEmpty();
-  await expect(page.locator("#name")).toHaveValue("");
-  await expect(page.locator("#message")).toHaveValue("");
-  await expect(page.locator("#search")).toHaveValue("");
-
-  await page.locator("#message").fill("no old listener");
-  await page.locator("#post").click();
-  await expect(page.locator("#count")).toHaveText("0");
+  await expect(page.locator("#app-root")).toBeEmpty();
+  await expect(page.locator("#name")).toHaveCount(0);
 });

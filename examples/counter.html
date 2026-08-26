@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PerlUI Counter</title>
+<style>
+  *{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;background:#f6f7fb;color:#18181b;font:16px/1.5 Inter,ui-sans-serif,system-ui}.counter{width:min(92vw,440px);padding:42px;border:1px solid #e4e4e7;border-radius:24px;background:#fff;box-shadow:0 20px 60px #18181b12;text-align:center}.counter h1{margin:0 0 12px;font-size:42px}.counter p{color:#71717a}.counter button{margin-top:18px;border:0;border-radius:999px;background:#7c3aed;color:#fff;padding:14px 22px;font:700 16px/1 system-ui;cursor:pointer}
+</style>
+<div id="app"></div>
+<script src="../dist/perlscript-web.js"></script>
+<script type="text/perl">
+$count = 0;
+
+sub increment {
+    $count++;
+}
+
+sub view {
+    begin("main", "class", "counter");
+    begin("h1"); text("Perl Counter"); end();
+    begin("p"); text("The state is an ordinary Perl scalar."); end();
+    begin("button", "type", "button");
+    on("click", "increment");
+    text("Count: $count");
+    end();
+    end();
+}
+
+open APP, ">ui:#app";
+mount(APP, "view");
+</script>
+

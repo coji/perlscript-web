@@ -77,6 +77,10 @@ Binary operators at the same level associate left. Assignment associates right.
 - `clear()` — browser extension; clears the selected output filehandle
 - `watch(HANDLE, "sub")` — browser extension; invokes the named subroutine for events
 
+PerlUI adds `mount`, `begin`, `text`, `on`, `key`, `bind`, and `end` as browser
+extensions without changing this grammar. Their normative behaviour is defined
+by the [PerlUI 1.0 Profile](./PERLUI-1.0.md).
+
 User subroutine arguments are available as `@_` and through `$_[index]`, for example `$_[0]`. Nested calls restore the caller's `@_`.
 
 ## Regular expressions
@@ -93,6 +97,7 @@ User subroutine arguments are available as `@_` and through `$_[index]`, for exa
 dom:<css-selector>                 readable element value/text
 >dom:<css-selector>                writable text output
 event:<event-name>:<css-selector>  event source
+>ui:<css-selector>                structured PerlUI mount
 ```
 
 - CSS selectors are passed unchanged to `querySelector`; only the first match is used.

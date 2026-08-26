@@ -32,7 +32,8 @@
  * @typedef {{ type:'memory', value:string, spec?:* }} MemoryHandle
  * @typedef {{ type:'dom-in'|'dom-out', element:Element }} DomHandle
  * @typedef {{ type:'event', element:Element, event:string }} EventHandle
- * @typedef {MemoryHandle|DomHandle|EventHandle} FileHandle
+ * @typedef {{ type:'ui', element:Element, renderer:import('./ui.js').DOMUIRenderer }} UIHandle
+ * @typedef {MemoryHandle|DomHandle|EventHandle|UIHandle} FileHandle
  */
 
 export {};

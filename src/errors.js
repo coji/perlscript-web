@@ -17,12 +17,13 @@ export class PerlScriptSyntaxError extends SyntaxError {
 }
 
 export class PerlScriptRuntimeError extends Error {
-  /** @param {string} message @param {{source?:string, range?:import('./types.js').SourceRange, cause?:*}} [options] */
-  constructor(message, { source = "", range, cause } = {}) {
+  /** @param {string} message @param {{source?:string, range?:import('./types.js').SourceRange, cause?:*, uiStack?:string[]}} [options] */
+  constructor(message, { source = "", range, cause, uiStack = [] } = {}) {
     const location = range ? ` at ${range.start.line}:${range.start.column}` : "";
     super(`${message}${location}`, cause === undefined ? undefined : { cause });
     this.name = "PerlScriptRuntimeError";
     this.range = range;
     this.excerpt = excerptFor(source, range);
+    this.uiStack = uiStack;
   }
 }

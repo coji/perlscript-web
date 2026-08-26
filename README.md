@@ -1,25 +1,56 @@
 # perlscript-web
 
-**Make the browser a UNIX that Perl 1.0 can understand.**
+**The future of UI, written in 1987.**
 
-`perlscript-web` runs a deliberately small, Perl 1.0-shaped language in the browser. It does not expose the DOM to Perl. Instead, DOM elements and browser events become filehandles: read an input with `<MESSAGE>`, write to an element with `print`, and watch an event handle.
+`perlscript-web` is a browser runtime and reactive UI layer built from a deliberately small, Perl 1.0-shaped language. The syntax stays in 1987; rendering, state scheduling, keyed reconciliation, lifecycle, and transactional recovery live in the 2026 runtime.
+
+**Perl 1.0 syntax. 2026 runtime.**
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/perlscript-web/dist/perlscript-web.min.js"></script>
 
-<output id="hello"></output>
+<div id="app"></div>
 <script type="text/perl">
-open HELLO, ">dom:#hello";
-select HELLO;
-print "Hello from Perl.";
+$count = 0;
+
+sub increment { $count++; }
+
+sub view {
+    begin("button", "type", "button");
+    on("click", "increment");
+    text("Count: $count");
+    end();
+}
+
+open APP, ">ui:#app";
+mount(APP, "view");
 </script>
 ```
 
-This is not a revival of ActiveState PerlScript. It is a browser-only interpreter and I/O bridge, installable from npm and usable from a CDN.
+State is an ordinary Perl scalar. Views and handlers are named subroutines. Changing the scalar schedules one safe DOM update; no DOM query, HTML string, JavaScript callback, JSX, object system, or new Perl syntax is involved.
+
+This is not a revival of ActiveState PerlScript and not a Perl-flavoured React port. It is a browser-only interpreter, structured UI runtime, and I/O bridge, installable from npm and usable from a CDN.
 
 Try the live [perlscript-web workbench](https://coji.github.io/perlscript-web/) or open the [editable BBS directly](https://coji.github.io/perlscript-web/examples/bbs.html).
 
-## Filehandles
+## PerlUI
+
+PerlUI turns ordinary calls into a validated UI instruction tree:
+
+- `open APP, ">ui:#app"` owns a mount point.
+- `mount(APP, "view")` renders a named view subroutine.
+- `begin`, `text`, and `end` describe structured, text-safe elements.
+- `on("click", "handler", $argument)` invokes a named subroutine with captured `@_` arguments.
+- `bind("value", "name")` connects a form property to `$name`.
+- `key($id)` preserves element identity across list changes.
+
+Assignments and array mutations are batched until the current top-level action finishes. Event and render failures restore the previous Perl state and last good UI. Nested subroutines are components and errors include their UI call stack.
+
+See the normative [PerlUI 1.0 Profile](docs/PERLUI-1.0.md), the standalone [Counter](examples/counter.html) and [Todo](examples/todo.html), and the editable [Guestbook](examples/bbs.html).
+
+## Low-level browser filehandles
+
+The original browser-as-UNIX API remains available as the low-level compatibility layer. DOM values, text output, and browser events become filehandles rather than DOM objects:
 
 ```perl
 open NAME,    "dom:#name";             # read value/text
@@ -36,7 +67,7 @@ do watch(ENTER, "post");
 
 `keydown` event handles fire only for Enter and ignore IME composition (`isComposing` and key code 229). Output is written with `textContent`, so user input is not interpreted as HTML.
 
-`watch(HANDLE, "sub")` and `clear()` are the two intentional browser-I/O extensions. Everything else follows the versioned [Perl 1 Web Profile 1.0](docs/PERL1-WEB-PROFILE.md).
+`watch(HANDLE, "sub")`, `clear()`, and the PerlUI primitives are intentional browser extensions. Everything else follows the versioned [Perl 1 Web Profile 1.0](docs/PERL1-WEB-PROFILE.md).
 
 ## Supported subset
 
@@ -99,7 +130,7 @@ Then visit `http://localhost:8000/examples/bbs.html`.
 
 ## Project status
 
-Version `1.0.0-rc.1` is a release candidate for YAPC::Tokyo 2026. The compatibility target is the documented **Perl 1 Web Profile 1.0**, not modern Perl and not full historical compatibility. See [compatibility](docs/COMPATIBILITY.md), [changelog](CHANGELOG.md), and [release procedure](docs/RELEASING.md).
+Stable version `1.0.0` implements the documented **Perl 1 Web Profile 1.0** and **PerlUI 1.0 Profile**, not modern Perl and not full historical compatibility. See [compatibility](docs/COMPATIBILITY.md), [changelog](CHANGELOG.md), and [release procedure](docs/RELEASING.md).
 
 ## License
 

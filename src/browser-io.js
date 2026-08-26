@@ -1,4 +1,5 @@
 import { MemoryIO } from "./io.js";
+import { DOMUIRenderer } from "./ui.js";
 
 export class BrowserIO extends MemoryIO {
   /** @param {Document} document */
@@ -17,7 +18,15 @@ export class BrowserIO extends MemoryIO {
     let type;
     let event;
     let selector;
-    if (body.startsWith("dom:")) {
+    if (body.startsWith("ui:")) {
+      if (!output) throw new Error(`UI filehandle must be writable: ${value}`);
+      selector = body.slice(3);
+      if (!selector) throw new Error(`Invalid browser filehandle spec ${value}`);
+      const element = this.document.querySelector(selector);
+      if (!element) throw new Error(`No element matches ${selector}`);
+      this.handles.set(name, { type: "ui", element, renderer: new DOMUIRenderer(this.document, element) });
+      return;
+    } else if (body.startsWith("dom:")) {
       type = "dom";
       selector = body.slice(4);
     } else if (body.startsWith("event:")) {
@@ -84,5 +93,22 @@ export class BrowserIO extends MemoryIO {
     this.listeners.push(() => handle.element.removeEventListener(handle.event, listener));
   }
 
-  dispose() { for (const remove of this.listeners.splice(0)) remove(); }
+  /** @param {string} name */
+  validateUI(name) {
+    const handle = this.require(name);
+    if (handle.type !== "ui") throw new Error(`${name} is not a UI filehandle`);
+  }
+
+  /** @param {string} name @param {import('./ui.js').UITreeBuilder['root']} tree @param {(sub:string|null,args:*[],updates:Array<[string,*]>)=>void} dispatch */
+  commitUI(name, tree, dispatch) {
+    this.validateUI(name);
+    const handle = this.require(name);
+    if (handle.type !== "ui") return;
+    handle.renderer.commit(tree, dispatch);
+  }
+
+  dispose() {
+    for (const remove of this.listeners.splice(0)) remove();
+    for (const handle of this.handles.values()) if (handle.type === "ui") handle.renderer.dispose();
+  }
 }

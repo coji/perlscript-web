@@ -1,4 +1,5 @@
 import { MemoryIO } from "./io.js";
+import { UITreeBuilder } from "./ui.js";
 export declare class Runtime {
     io: MemoryIO;
     maxIterations: number;
@@ -12,6 +13,14 @@ export declare class Runtime {
     /** @type {Map<string,import('./types.js').SubStatement>} */
     subs: Map<string, import('./types.js').SubStatement>;
     source: string;
+    /** @type {Map<string,string>} */
+    mounts: Map<string, string>;
+    /** @type {UITreeBuilder|null} */
+    uiBuilder: UITreeBuilder | null;
+    rendering: boolean;
+    dirty: boolean;
+    /** @type {string[]} */
+    callStack: string[];
     /** @param {{io?:MemoryIO,maxIterations?:number,onError?:((error:Error)=>void)|null}} [options] */
     constructor({ io, maxIterations, onError }?: {
         io?: MemoryIO;
@@ -48,5 +57,30 @@ export declare class Runtime {
     toHash(value: any): Record<string, any>;
     /** @param {*} value @returns {string} */
     stringify(value: any): string;
+    /** @param {*} handleValue @param {*} viewValue */
+    mount(handleValue: any, viewValue: any): string;
+    /** @param {string} operation @returns {UITreeBuilder} */
+    requireUI(operation: string): UITreeBuilder;
+    markDirty(): void;
+    flushUI(): void;
+    /** @param {string|null} sub @param {*[]} args @param {Array<[string,*]>} updates */
+    dispatchUI(sub: string | null, args: any[], updates: Array<[string, any]>): void;
+    /** @param {()=>void} action */
+    transaction(action: () => void): void;
+    snapshot(): {
+        scalars: any;
+        arrays: any;
+        hashes: any;
+    };
+    /** @param {{scalars:Record<string,*>,arrays:Record<string,*>,hashes:Record<string,*>}} state */
+    restore(state: {
+        scalars: Record<string, any>;
+        arrays: Record<string, any>;
+        hashes: Record<string, any>;
+    }): void;
+    /** @param {Record<string,*>} record */
+    cloneRecord(record: Record<string, any>): any;
+    /** @param {*} value @returns {*} */
+    cloneValue(value: any): any;
     dispose(): void;
 }

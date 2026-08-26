@@ -1,8 +1,8 @@
 {
   "name": "perlscript-web",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0",
   "packageManager": "pnpm@11.24.0",
-  "description": "Perl 1.0-inspired scripts for the browser, with the web exposed as filehandles.",
+  "description": "A reactive UI runtime built with Perl 1.0-shaped syntax for the browser.",
   "type": "module",
   "main": "src/index.js",
   "module": "src/index.js",
@@ -68,6 +68,8 @@
     "perl1",
     "browser",
     "interpreter",
+    "reactive-ui",
+    "ui-framework",
     "yapc"
   ],
   "license": "MIT",

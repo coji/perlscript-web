@@ -2,6 +2,7 @@ import { ESCAPED_DOLLAR } from "./lexer.js";
 import { parse } from "./parser.js";
 import { MemoryIO } from "./io.js";
 import { PerlScriptRuntimeError } from "./errors.js";
+import { UITreeBuilder } from "./ui.js";
 
 const RETURN = Symbol("return");
 /** @param {*} value */
@@ -31,6 +32,14 @@ export class Runtime {
     /** @type {Map<string,import('./types.js').SubStatement>} */
     this.subs = new Map();
     this.source = "";
+    /** @type {Map<string,string>} */
+    this.mounts = new Map();
+    /** @type {UITreeBuilder|null} */
+    this.uiBuilder = null;
+    this.rendering = false;
+    this.dirty = false;
+    /** @type {string[]} */
+    this.callStack = [];
   }
 
   /** @param {string} source @returns {Runtime} */
@@ -39,6 +48,7 @@ export class Runtime {
   execute(program) {
     for (const statement of program.body) if (statement.type === "sub") this.subs.set(statement.name, statement);
     for (const statement of program.body) if (statement.type !== "sub") this.exec(statement);
+    this.flushUI();
     return this;
   }
 
@@ -118,10 +128,11 @@ export class Runtime {
       if (node.sigil === "@") this.arrays[node.name] = Array.isArray(value) ? value : [value];
       else if (node.sigil === "%") this.hashes[node.name] = this.toHash(value);
       else this.scalars[node.name] = value;
+      this.markDirty();
       return;
     }
-    if (node.type === "index") { this.indexTarget(node.target)[num(this.eval(node.index))] = value; return; }
-    if (node.type === "hashIndex") { this.hashTarget(node.target)[this.stringify(this.eval(node.key))] = value; return; }
+    if (node.type === "index") { this.indexTarget(node.target)[num(this.eval(node.index))] = value; this.markDirty(); return; }
+    if (node.type === "hashIndex") { this.hashTarget(node.target)[this.stringify(this.eval(node.key))] = value; this.markDirty(); return; }
     throw new Error("Invalid assignment target");
   }
 
@@ -144,14 +155,28 @@ export class Runtime {
 
   /** @param {string} name @param {*[]} args @returns {*} */
   call(name, args) {
-    if (name === "push") return args[0].push(args[1]);
-    if (name === "pop") return args[0].pop() ?? "";
-    if (name === "shift") return args[0].shift() ?? "";
+    if (name === "push") { const value = args[0].push(args[1]); this.markDirty(); return value; }
+    if (name === "pop") { const value = args[0].pop() ?? ""; this.markDirty(); return value; }
+    if (name === "shift") { const value = args[0].shift() ?? ""; this.markDirty(); return value; }
     if (name === "keys") return Object.keys(args[0]);
     if (name === "values") return Object.values(args[0]);
     if (name === "clear") return this.io.clear();
+    if (name === "mount") return this.mount(args[0], args[1]);
+    if (name === "begin") return this.requireUI(name).begin(args[0], args.slice(1));
+    if (name === "text") return this.requireUI(name).text(args[0]);
+    if (name === "on") {
+      const sub = this.stringify(args[1]);
+      if (!this.subs.has(sub)) throw new Error(`Undefined UI event subroutine ${sub}`);
+      return this.requireUI(name).on(args[0], sub, args.slice(2));
+    }
+    if (name === "key") return this.requireUI(name).key(args[0]);
+    if (name === "bind") {
+      const variable = this.stringify(args[1]).replace(/^\$/, "");
+      return this.requireUI(name).bind(args[0], variable, this.scalars[variable] ?? "");
+    }
+    if (name === "end") return this.requireUI(name).end();
     if (name === "watch") return this.io.watch(args[0], args[1], () => {
-      try { this.call(args[1], []); }
+      try { this.call(args[1], []); this.flushUI(); }
       catch (error) {
         if (!this.onError) throw error;
         this.onError(error instanceof Error ? error : new Error(String(error)));
@@ -161,10 +186,16 @@ export class Runtime {
     if (!sub) throw new Error(`Undefined subroutine ${name}`);
     const previous = this.arrays._;
     this.arrays._ = args;
+    this.callStack.push(name);
     try {
-      try { this.execBlock(sub.body); } catch (result) { if (isReturnSignal(result)) return result.value; throw result; }
+      try { this.execBlock(sub.body); } catch (result) {
+        if (isReturnSignal(result)) return result.value;
+        if (this.rendering && result instanceof PerlScriptRuntimeError && result.uiStack.length === 0) result.uiStack = [...this.callStack];
+        throw result;
+      }
       return "";
     } finally {
+      this.callStack.pop();
       if (previous === undefined) delete this.arrays._;
       else this.arrays._ = previous;
     }
@@ -199,5 +230,108 @@ export class Runtime {
   }
   /** @param {*} value @returns {string} */
   stringify(value) { return value === null || value === undefined ? "" : Array.isArray(value) ? value.map(item => this.stringify(item)).join("") : String(value); }
+
+  /** @param {*} handleValue @param {*} viewValue */
+  mount(handleValue, viewValue) {
+    if (this.rendering) throw new Error("mount cannot be called while rendering");
+    const handle = this.stringify(handleValue);
+    const view = this.stringify(viewValue);
+    if (!this.subs.has(view)) throw new Error(`Undefined UI view subroutine ${view}`);
+    this.io.validateUI(handle);
+    if (this.mounts.has(handle)) throw new Error(`UI handle ${handle} is already mounted`);
+    this.mounts.set(handle, view);
+    this.dirty = true;
+    return "";
+  }
+
+  /** @param {string} operation @returns {UITreeBuilder} */
+  requireUI(operation) {
+    if (!this.uiBuilder) throw new Error(`${operation} can only be called while rendering UI`);
+    return this.uiBuilder;
+  }
+
+  markDirty() { if (!this.rendering && this.mounts.size) this.dirty = true; }
+
+  flushUI() {
+    if (!this.dirty || !this.mounts.size || this.rendering) return;
+    /** @type {Array<[string,import('./ui.js').UITreeBuilder['root']]>} */
+    const candidates = [];
+    this.dirty = false;
+    for (const [handle, view] of this.mounts) {
+      const state = this.snapshot();
+      const builder = new UITreeBuilder();
+      this.uiBuilder = builder;
+      this.rendering = true;
+      try {
+        this.call(view, []);
+        try { candidates.push([handle, builder.finish()]); }
+        catch (error) {
+          if (error instanceof PerlScriptRuntimeError) throw error;
+          const cause = error instanceof Error ? error : new Error(String(error));
+          throw new PerlScriptRuntimeError(cause.message, { source: this.source, range: this.subs.get(view)?.range, cause, uiStack: [view] });
+        }
+      }
+      finally {
+        this.restore(state);
+        this.rendering = false;
+        this.uiBuilder = null;
+      }
+    }
+    for (const [handle, tree] of candidates) {
+      this.io.commitUI(handle, tree,
+        (sub, args, updates) => this.dispatchUI(sub, args, updates));
+    }
+  }
+
+  /** @param {string|null} sub @param {*[]} args @param {Array<[string,*]>} updates */
+  dispatchUI(sub, args, updates) {
+    try {
+      this.transaction(() => {
+        for (const [variable, value] of updates) this.scalars[variable] = value;
+        if (updates.length) this.markDirty();
+        if (sub) this.call(sub, args);
+      });
+    }
+    catch (error) {
+      if (!this.onError) throw error;
+      this.onError(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  /** @param {()=>void} action */
+  transaction(action) {
+    const state = this.snapshot();
+    const wasDirty = this.dirty;
+    try { action(); this.flushUI(); }
+    catch (error) {
+      this.restore(state);
+      this.dirty = this.mounts.size > 0;
+      try { this.flushUI(); } catch { /* Keep the original action error. */ }
+      this.dirty = wasDirty;
+      throw error;
+    }
+  }
+
+  snapshot() {
+    return { scalars: this.cloneRecord(this.scalars), arrays: this.cloneRecord(this.arrays), hashes: this.cloneRecord(this.hashes) };
+  }
+
+  /** @param {{scalars:Record<string,*>,arrays:Record<string,*>,hashes:Record<string,*>}} state */
+  restore(state) { this.scalars = state.scalars; this.arrays = state.arrays; this.hashes = state.hashes; }
+
+  /** @param {Record<string,*>} record */
+  cloneRecord(record) {
+    const copy = Object.create(null);
+    for (const [key, value] of Object.entries(record)) copy[key] = this.cloneValue(value);
+    return copy;
+  }
+
+  /** @param {*} value @returns {*} */
+  cloneValue(value) {
+    if (Array.isArray(value)) return value.map(item => this.cloneValue(item));
+    if (value && typeof value === "object") return this.cloneRecord(value);
+    return value;
+  }
+
   dispose() { this.io.dispose(); }
 }

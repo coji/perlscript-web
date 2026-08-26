@@ -25,6 +25,7 @@ The normative contract is [Perl 1 Web Profile 1.0](./PERL1-WEB-PROFILE.md). The 
 | Regex matching | Adapted | JavaScript RegExp engine and flags; no substitution/captures. |
 | `open`, `select`, `print`, `<HANDLE>` | Adapted | Backed by memory or DOM filehandles. |
 | `watch`, `clear` | Browser extension | Explicitly non-historical. |
+| `ui:` and PerlUI built-ins | Browser extension | Structured reactive UI; no grammar additions. |
 | DOM/event objects | Unsupported | Never exposed to Perl source. |
 | Filesystem/process APIs | Unsupported | Browser-only runtime. |
 
@@ -34,3 +35,4 @@ The normative contract is [Perl 1 Web Profile 1.0](./PERL1-WEB-PROFILE.md). The 
 - Minor releases add syntax, built-ins, filehandle kinds, or optional APIs without breaking the profile.
 - Major releases may change existing syntax, value semantics, browser I/O behavior, or lifecycle contracts.
 - Every language change requires conformance tests and a profile update in the same change.
+- PerlUI additions that do not alter language semantics follow the separately versioned [PerlUI 1.0 Profile](./PERLUI-1.0.md).

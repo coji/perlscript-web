@@ -7,7 +7,7 @@
 
 ## Status
 
-- **Execution**: TODO
+- **Execution**: IN PROGRESS — M0-M4 complete; M5 release in progress
 - **Priority**: P1
 - **Effort**: XL, delivered as independently releasable milestones
 - **Risk**: HIGH

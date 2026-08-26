@@ -64,6 +64,27 @@ test("failed rerun preserves the previous runtime", async () => {
   disposeScript(state.script);
 });
 
+test("failed PerlUI rerun preserves the previous DOM and listener", async () => {
+  const root = new FakeElement();
+  const state = createFakeDocument({ "#app": root });
+  const script = createPerlScript(state.document, `
+    $count = 0;
+    sub increment { $count++; }
+    sub view { begin("button"); on("click", "increment"); text("Count: $count"); end(); }
+    open APP, ">ui:#app"; mount(APP, "view");
+  `);
+  state.scripts.push(script);
+  await runScripts(state.document);
+  const button = root.childNodes[0];
+  script.textContent = `sub view { begin("script"); end(); } open APP, ">ui:#app"; mount(APP, "view");`;
+  await assert.rejects(runScripts(state.document), /Unsafe or invalid UI tag script/);
+  assert.equal(root.childNodes[0], button);
+  assert.equal(button.listenerCount("click"), 1);
+  button.emit("click");
+  assert.equal(root.textContent, "Count: 1");
+  disposeScript(script);
+});
+
 test("the newest overlapping external run wins and superseded listeners are absent", async () => {
   const state = fixture("");
   state.script.src = "https://example.test/app.pl";

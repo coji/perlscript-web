@@ -16,6 +16,10 @@ export class MemoryIO {
   clear(name = this.selected) { const handle = this.require(name); if (handle.type !== "memory") throw new Error(`${name} is not a memory filehandle`); handle.value = ""; }
   /** @param {string} _handleName @param {string} _subName @param {Function} _callback */
   watch(_handleName, _subName, _callback) { throw new Error("Event handles require BrowserIO"); }
+  /** @param {string} _name */
+  validateUI(_name) { throw new Error("UI handles require BrowserIO"); }
+  /** @param {string} _name @param {*} _tree @param {(sub:string|null,args:*[],updates:Array<[string,*]>)=>void} _dispatch */
+  commitUI(_name, _tree, _dispatch) { throw new Error("UI handles require BrowserIO"); }
   /** @param {string} name @returns {import('./types.js').FileHandle} */
   require(name) { const handle = this.handles.get(name); if (!handle) throw new Error(`Unknown filehandle ${name}`); return handle; }
   dispose() {}

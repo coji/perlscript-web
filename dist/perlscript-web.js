@@ -45,13 +45,14 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
     }
   };
   var PerlScriptRuntimeError = class extends Error {
-    /** @param {string} message @param {{source?:string, range?:import('./types.js').SourceRange, cause?:*}} [options] */
-    constructor(message, { source = "", range, cause } = {}) {
+    /** @param {string} message @param {{source?:string, range?:import('./types.js').SourceRange, cause?:*, uiStack?:string[]}} [options] */
+    constructor(message, { source = "", range, cause, uiStack = [] } = {}) {
       const location = range ? ` at ${range.start.line}:${range.start.column}` : "";
       super(`${message}${location}`, cause === void 0 ? void 0 : { cause });
       this.name = "PerlScriptRuntimeError";
       this.range = range;
       this.excerpt = excerptFor(source, range);
+      this.uiStack = uiStack;
     }
   };
 
@@ -535,6 +536,14 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
     watch(_handleName, _subName, _callback) {
       throw new Error("Event handles require BrowserIO");
     }
+    /** @param {string} _name */
+    validateUI(_name) {
+      throw new Error("UI handles require BrowserIO");
+    }
+    /** @param {string} _name @param {*} _tree @param {(sub:string|null,args:*[],updates:Array<[string,*]>)=>void} _dispatch */
+    commitUI(_name, _tree, _dispatch) {
+      throw new Error("UI handles require BrowserIO");
+    }
     /** @param {string} name @returns {import('./types.js').FileHandle} */
     require(name) {
       const handle = this.handles.get(name);
@@ -542,6 +551,273 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       return handle;
     }
     dispose() {
+    }
+  };
+
+  // src/ui.js
+  var BLOCKED_TAGS = /* @__PURE__ */ new Set(["base", "embed", "iframe", "link", "meta", "object", "script", "style"]);
+  var BOOLEAN_ATTRIBUTES = /* @__PURE__ */ new Set(["checked", "disabled", "hidden", "multiple", "open", "readonly", "required", "selected"]);
+  var URL_ATTRIBUTES = /* @__PURE__ */ new Set(["action", "formaction", "href", "src"]);
+  var TAG = /^[a-z][a-z0-9-]*$/;
+  var ATTRIBUTE = /^[A-Za-z_:][A-Za-z0-9_.:-]*$/;
+  var EVENT = /^[a-z][a-z0-9]*$/;
+  var perlTrue = (value) => !(value === "" || value === "0" || value === 0 || value === null || value === void 0 || value === false);
+  var stringValue = (value) => value === null || value === void 0 ? "" : String(value);
+  var UITreeBuilder = class {
+    constructor() {
+      this.root = { type: "root", children: [] };
+      this.stack = [this.root];
+    }
+    /** @returns {UIRoot|UIElement} */
+    current() {
+      return this.stack[this.stack.length - 1];
+    }
+    /** @param {*} tagValue @param {*[]} attributePairs */
+    begin(tagValue, attributePairs) {
+      const tag = stringValue(tagValue).toLowerCase();
+      if (!TAG.test(tag) || BLOCKED_TAGS.has(tag)) throw new Error(`Unsafe or invalid UI tag ${tag || "(empty)"}`);
+      if (attributePairs.length % 2 !== 0) throw new Error(`UI element ${tag} requires attribute name/value pairs`);
+      const attrs = /* @__PURE__ */ Object.create(null);
+      for (let index = 0; index < attributePairs.length; index += 2) {
+        const name = stringValue(attributePairs[index]);
+        const lower = name.toLowerCase();
+        const value = attributePairs[index + 1];
+        if (!ATTRIBUTE.test(name) || lower.startsWith("on") || lower === "innerhtml" || lower === "outerhtml" || lower === "srcdoc") {
+          throw new Error(`Unsafe or invalid UI attribute ${name || "(empty)"}`);
+        }
+        if (URL_ATTRIBUTES.has(lower) && /^\s*javascript:/i.test(stringValue(value))) throw new Error(`Unsafe URL for UI attribute ${name}`);
+        attrs[name] = value;
+      }
+      const node = { type: "element", tag, attrs, events: /* @__PURE__ */ Object.create(null), bindings: [], key: null, children: [] };
+      this.current().children.push(node);
+      this.stack.push(node);
+    }
+    /** @param {*} value */
+    text(value) {
+      this.current().children.push({ type: "text", value: stringValue(value) });
+    }
+    /** @param {*} eventValue @param {*} subValue @param {*[]} args */
+    on(eventValue, subValue, args = []) {
+      const node = this.element("on");
+      const event = stringValue(eventValue).toLowerCase();
+      const sub = stringValue(subValue);
+      if (!EVENT.test(event)) throw new Error(`Invalid UI event ${event || "(empty)"}`);
+      if (!sub) throw new Error("UI event requires a subroutine name");
+      node.events[event] = { sub, args };
+    }
+    /** @param {*} value */
+    key(value) {
+      const node = this.element("key");
+      if (node.key !== null) throw new Error("UI element already has a key");
+      node.key = stringValue(value);
+    }
+    /** @param {*} propertyValue @param {*} variableValue @param {*} value */
+    bind(propertyValue, variableValue, value) {
+      const node = this.element("bind");
+      const property = stringValue(propertyValue);
+      const variable = stringValue(variableValue).replace(/^\$/, "");
+      if (property !== "value" && property !== "checked") throw new Error(`Unsupported UI binding property ${property || "(empty)"}`);
+      const valueTag = node.tag === "input" || node.tag === "textarea" || node.tag === "select";
+      const inputType = stringValue(node.attrs.type).toLowerCase();
+      const checkedInput = node.tag === "input" && (inputType === "checkbox" || inputType === "radio");
+      if (property === "value" && !valueTag || property === "checked" && !checkedInput) {
+        throw new Error(`${node.tag} does not support UI binding property ${property}`);
+      }
+      if (!/^[A-Za-z_]\w*$/.test(variable)) throw new Error(`Invalid UI binding scalar ${variable || "(empty)"}`);
+      if (node.bindings.some((binding) => binding.property === property)) throw new Error(`Duplicate UI binding for ${property}`);
+      node.bindings.push({ property, variable, value });
+    }
+    end() {
+      if (this.stack.length === 1) throw new Error("Cannot close the UI root");
+      this.stack.pop();
+    }
+    /** @returns {UIRoot} */
+    finish() {
+      if (this.stack.length !== 1) throw new Error(`Unclosed UI element ${/** @type {UIElement} */
+      this.current().tag}`);
+      this.validateKeys(this.root);
+      return this.root;
+    }
+    /** @param {UIRoot|UIElement} parent */
+    validateKeys(parent) {
+      const keys = /* @__PURE__ */ new Set();
+      for (const child of parent.children) {
+        if (child.type !== "element") continue;
+        if (child.key !== null) {
+          if (keys.has(child.key)) throw new Error(`Duplicate UI key ${child.key}`);
+          keys.add(child.key);
+        }
+        this.validateKeys(child);
+      }
+    }
+    /** @param {string} operation @returns {UIElement} */
+    element(operation) {
+      const current = this.current();
+      if (current.type !== "element") throw new Error(`${operation} requires a current UI element`);
+      return current;
+    }
+  };
+  var DOMUIRenderer = class {
+    /** @param {Document} document @param {Element} root */
+    constructor(document2, root) {
+      this.document = document2;
+      this.root = root;
+      this.tree = null;
+    }
+    /**
+     * @param {UIRoot} tree
+     * @param {(sub:string|null,args:*[],updates:Array<[string,*]>)=>void} dispatch
+     */
+    commit(tree, dispatch) {
+      if (!this.tree) {
+        const nodes = tree.children.map((node) => this.create(node, dispatch));
+        this.root.replaceChildren(...nodes);
+      } else {
+        this.patchChildren(this.root, this.tree.children, tree.children, dispatch);
+      }
+      this.tree = tree;
+    }
+    /** @param {UINode} node @param {(sub:string|null,args:*[],updates:Array<[string,*]>)=>void} dispatch @returns {Node} */
+    create(node, dispatch) {
+      if (node.type === "text") {
+        const dom = this.document.createTextNode(node.value);
+        node.dom = dom;
+        return dom;
+      }
+      const element = this.document.createElement(node.tag);
+      node.dom = element;
+      this.patchElement(null, node, dispatch);
+      element.append(...node.children.map((child) => this.create(child, dispatch)));
+      return element;
+    }
+    /**
+     * @param {Element} parent @param {UINode[]} oldChildren @param {UINode[]} newChildren
+     * @param {(sub:string|null,args:*[],updates:Array<[string,*]>)=>void} dispatch
+     */
+    patchChildren(parent, oldChildren, newChildren, dispatch) {
+      const keyed = /* @__PURE__ */ new Map();
+      for (const old of oldChildren) if (old.type === "element" && old.key !== null) keyed.set(old.key, old);
+      const used = /* @__PURE__ */ new Set();
+      const ordered = [];
+      for (let index = 0; index < newChildren.length; index++) {
+        const next = newChildren[index];
+        let previous = next.type === "element" && next.key !== null ? keyed.get(next.key) : oldChildren[index];
+        if (previous && used.has(previous)) previous = void 0;
+        if (previous && !this.compatible(previous, next)) previous = void 0;
+        if (previous) {
+          used.add(previous);
+          ordered.push(this.patch(previous, next, dispatch));
+        } else {
+          ordered.push(this.create(next, dispatch));
+        }
+      }
+      for (const old of oldChildren) if (!used.has(old)) this.remove(old);
+      for (let index = 0; index < ordered.length; index++) {
+        const reference = parent.childNodes[index] || null;
+        if (reference !== ordered[index]) parent.insertBefore(ordered[index], reference);
+      }
+    }
+    /** @param {UINode} oldNode @param {UINode} newNode */
+    compatible(oldNode, newNode) {
+      return oldNode.type === newNode.type && (oldNode.type === "text" || oldNode.tag === /** @type {UIElement} */
+      newNode.tag);
+    }
+    /** @param {UINode} oldNode @param {UINode} newNode @param {(sub:string|null,args:*[],updates:Array<[string,*]>)=>void} dispatch @returns {Node} */
+    patch(oldNode, newNode, dispatch) {
+      if (oldNode.type === "text" && newNode.type === "text") {
+        const dom2 = (
+          /** @type {Node} */
+          oldNode.dom
+        );
+        if (oldNode.value !== newNode.value) dom2.textContent = newNode.value;
+        newNode.dom = dom2;
+        return dom2;
+      }
+      const oldElement = (
+        /** @type {UIElement} */
+        oldNode
+      );
+      const newElement = (
+        /** @type {UIElement} */
+        newNode
+      );
+      const dom = (
+        /** @type {Element} */
+        oldElement.dom
+      );
+      newElement.dom = dom;
+      this.patchElement(oldElement, newElement, dispatch);
+      this.patchChildren(dom, oldElement.children, newElement.children, dispatch);
+      return dom;
+    }
+    /** @param {UIElement|null} oldNode @param {UIElement} node @param {(sub:string|null,args:*[],updates:Array<[string,*]>)=>void} dispatch */
+    patchElement(oldNode, node, dispatch) {
+      const element = (
+        /** @type {HTMLElement} */
+        node.dom
+      );
+      for (const cleanup of oldNode?.cleanups || []) cleanup();
+      node.cleanups = [];
+      const oldAttrs = oldNode?.attrs || /* @__PURE__ */ Object.create(null);
+      for (const name of Object.keys(oldAttrs)) if (!(name in node.attrs)) element.removeAttribute(name);
+      for (const [name, raw] of Object.entries(node.attrs)) {
+        const lower = name.toLowerCase();
+        if (BOOLEAN_ATTRIBUTES.has(lower)) {
+          if (perlTrue(raw)) element.setAttribute(name, "");
+          else element.removeAttribute(name);
+        } else {
+          const value = stringValue(raw);
+          if (element.getAttribute(name) !== value) element.setAttribute(name, value);
+        }
+      }
+      const actions = /* @__PURE__ */ new Map();
+      for (const [event, handler] of Object.entries(node.events)) actions.set(event, { handler, bindings: [] });
+      for (const binding of node.bindings) {
+        const propertyTarget = (
+          /** @type {Record<string,*>} */
+          /** @type {*} */
+          element
+        );
+        if (!(binding.property in propertyTarget)) throw new Error(`${node.tag} does not support UI binding property ${binding.property}`);
+        const desired = binding.property === "checked" ? perlTrue(binding.value) : stringValue(binding.value);
+        if (propertyTarget[binding.property] !== desired) propertyTarget[binding.property] = desired;
+        const event = binding.property === "checked" || node.tag === "select" ? "change" : "input";
+        const action = actions.get(event) || { handler: null, bindings: [] };
+        action.bindings.push(binding);
+        actions.set(event, action);
+      }
+      for (const [event, action] of actions) {
+        const listener = (browserEvent) => {
+          if (event === "submit") browserEvent.preventDefault();
+          const target = (
+            /** @type {Record<string,*>} */
+            /** @type {*} */
+            element
+          );
+          const updates = action.bindings.map((binding) => (
+            /** @type {[string,*]} */
+            [binding.variable, target[binding.property]]
+          ));
+          dispatch(action.handler?.sub || null, action.handler?.args || [], updates);
+        };
+        element.addEventListener(event, listener);
+        node.cleanups.push(() => element.removeEventListener(event, listener));
+      }
+    }
+    /** @param {UINode} node */
+    remove(node) {
+      this.cleanup(node);
+      node.dom?.parentNode?.removeChild(node.dom);
+    }
+    /** @param {UINode} node */
+    cleanup(node) {
+      if (node.type === "text") return;
+      for (const cleanup of node.cleanups || []) cleanup();
+      for (const child of node.children) this.cleanup(child);
+    }
+    dispose() {
+      if (this.tree) for (const child of this.tree.children) this.cleanup(child);
+      this.tree = null;
     }
   };
 
@@ -565,6 +841,11 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       this.hashes = /* @__PURE__ */ Object.create(null);
       this.subs = /* @__PURE__ */ new Map();
       this.source = "";
+      this.mounts = /* @__PURE__ */ new Map();
+      this.uiBuilder = null;
+      this.rendering = false;
+      this.dirty = false;
+      this.callStack = [];
     }
     /** @param {string} source @returns {Runtime} */
     run(source) {
@@ -575,6 +856,7 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
     execute(program) {
       for (const statement of program.body) if (statement.type === "sub") this.subs.set(statement.name, statement);
       for (const statement of program.body) if (statement.type !== "sub") this.exec(statement);
+      this.flushUI();
       return this;
     }
     /** @param {import('./types.js').Statement} node @returns {*} */
@@ -682,14 +964,17 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
         if (node.sigil === "@") this.arrays[node.name] = Array.isArray(value) ? value : [value];
         else if (node.sigil === "%") this.hashes[node.name] = this.toHash(value);
         else this.scalars[node.name] = value;
+        this.markDirty();
         return;
       }
       if (node.type === "index") {
         this.indexTarget(node.target)[num(this.eval(node.index))] = value;
+        this.markDirty();
         return;
       }
       if (node.type === "hashIndex") {
         this.hashTarget(node.target)[this.stringify(this.eval(node.key))] = value;
+        this.markDirty();
         return;
       }
       throw new Error("Invalid assignment target");
@@ -747,15 +1032,42 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
     }
     /** @param {string} name @param {*[]} args @returns {*} */
     call(name, args) {
-      if (name === "push") return args[0].push(args[1]);
-      if (name === "pop") return args[0].pop() ?? "";
-      if (name === "shift") return args[0].shift() ?? "";
+      if (name === "push") {
+        const value = args[0].push(args[1]);
+        this.markDirty();
+        return value;
+      }
+      if (name === "pop") {
+        const value = args[0].pop() ?? "";
+        this.markDirty();
+        return value;
+      }
+      if (name === "shift") {
+        const value = args[0].shift() ?? "";
+        this.markDirty();
+        return value;
+      }
       if (name === "keys") return Object.keys(args[0]);
       if (name === "values") return Object.values(args[0]);
       if (name === "clear") return this.io.clear();
+      if (name === "mount") return this.mount(args[0], args[1]);
+      if (name === "begin") return this.requireUI(name).begin(args[0], args.slice(1));
+      if (name === "text") return this.requireUI(name).text(args[0]);
+      if (name === "on") {
+        const sub2 = this.stringify(args[1]);
+        if (!this.subs.has(sub2)) throw new Error(`Undefined UI event subroutine ${sub2}`);
+        return this.requireUI(name).on(args[0], sub2, args.slice(2));
+      }
+      if (name === "key") return this.requireUI(name).key(args[0]);
+      if (name === "bind") {
+        const variable = this.stringify(args[1]).replace(/^\$/, "");
+        return this.requireUI(name).bind(args[0], variable, this.scalars[variable] ?? "");
+      }
+      if (name === "end") return this.requireUI(name).end();
       if (name === "watch") return this.io.watch(args[0], args[1], () => {
         try {
           this.call(args[1], []);
+          this.flushUI();
         } catch (error) {
           if (!this.onError) throw error;
           this.onError(error instanceof Error ? error : new Error(String(error)));
@@ -765,15 +1077,18 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       if (!sub) throw new Error(`Undefined subroutine ${name}`);
       const previous = this.arrays._;
       this.arrays._ = args;
+      this.callStack.push(name);
       try {
         try {
           this.execBlock(sub.body);
         } catch (result) {
           if (isReturnSignal(result)) return result.value;
+          if (this.rendering && result instanceof PerlScriptRuntimeError && result.uiStack.length === 0) result.uiStack = [...this.callStack];
           throw result;
         }
         return "";
       } finally {
+        this.callStack.pop();
         if (previous === void 0) delete this.arrays._;
         else this.arrays._ = previous;
       }
@@ -807,6 +1122,110 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
     stringify(value) {
       return value === null || value === void 0 ? "" : Array.isArray(value) ? value.map((item) => this.stringify(item)).join("") : String(value);
     }
+    /** @param {*} handleValue @param {*} viewValue */
+    mount(handleValue, viewValue) {
+      if (this.rendering) throw new Error("mount cannot be called while rendering");
+      const handle = this.stringify(handleValue);
+      const view = this.stringify(viewValue);
+      if (!this.subs.has(view)) throw new Error(`Undefined UI view subroutine ${view}`);
+      this.io.validateUI(handle);
+      if (this.mounts.has(handle)) throw new Error(`UI handle ${handle} is already mounted`);
+      this.mounts.set(handle, view);
+      this.dirty = true;
+      return "";
+    }
+    /** @param {string} operation @returns {UITreeBuilder} */
+    requireUI(operation) {
+      if (!this.uiBuilder) throw new Error(`${operation} can only be called while rendering UI`);
+      return this.uiBuilder;
+    }
+    markDirty() {
+      if (!this.rendering && this.mounts.size) this.dirty = true;
+    }
+    flushUI() {
+      if (!this.dirty || !this.mounts.size || this.rendering) return;
+      const candidates = [];
+      this.dirty = false;
+      for (const [handle, view] of this.mounts) {
+        const state = this.snapshot();
+        const builder = new UITreeBuilder();
+        this.uiBuilder = builder;
+        this.rendering = true;
+        try {
+          this.call(view, []);
+          try {
+            candidates.push([handle, builder.finish()]);
+          } catch (error) {
+            if (error instanceof PerlScriptRuntimeError) throw error;
+            const cause = error instanceof Error ? error : new Error(String(error));
+            throw new PerlScriptRuntimeError(cause.message, { source: this.source, range: this.subs.get(view)?.range, cause, uiStack: [view] });
+          }
+        } finally {
+          this.restore(state);
+          this.rendering = false;
+          this.uiBuilder = null;
+        }
+      }
+      for (const [handle, tree] of candidates) {
+        this.io.commitUI(
+          handle,
+          tree,
+          (sub, args, updates) => this.dispatchUI(sub, args, updates)
+        );
+      }
+    }
+    /** @param {string|null} sub @param {*[]} args @param {Array<[string,*]>} updates */
+    dispatchUI(sub, args, updates) {
+      try {
+        this.transaction(() => {
+          for (const [variable, value] of updates) this.scalars[variable] = value;
+          if (updates.length) this.markDirty();
+          if (sub) this.call(sub, args);
+        });
+      } catch (error) {
+        if (!this.onError) throw error;
+        this.onError(error instanceof Error ? error : new Error(String(error)));
+      }
+    }
+    /** @param {()=>void} action */
+    transaction(action) {
+      const state = this.snapshot();
+      const wasDirty = this.dirty;
+      try {
+        action();
+        this.flushUI();
+      } catch (error) {
+        this.restore(state);
+        this.dirty = this.mounts.size > 0;
+        try {
+          this.flushUI();
+        } catch {
+        }
+        this.dirty = wasDirty;
+        throw error;
+      }
+    }
+    snapshot() {
+      return { scalars: this.cloneRecord(this.scalars), arrays: this.cloneRecord(this.arrays), hashes: this.cloneRecord(this.hashes) };
+    }
+    /** @param {{scalars:Record<string,*>,arrays:Record<string,*>,hashes:Record<string,*>}} state */
+    restore(state) {
+      this.scalars = state.scalars;
+      this.arrays = state.arrays;
+      this.hashes = state.hashes;
+    }
+    /** @param {Record<string,*>} record */
+    cloneRecord(record) {
+      const copy = /* @__PURE__ */ Object.create(null);
+      for (const [key, value] of Object.entries(record)) copy[key] = this.cloneValue(value);
+      return copy;
+    }
+    /** @param {*} value @returns {*} */
+    cloneValue(value) {
+      if (Array.isArray(value)) return value.map((item) => this.cloneValue(item));
+      if (value && typeof value === "object") return this.cloneRecord(value);
+      return value;
+    }
     dispose() {
       this.io.dispose();
     }
@@ -828,7 +1247,15 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       let type;
       let event;
       let selector;
-      if (body.startsWith("dom:")) {
+      if (body.startsWith("ui:")) {
+        if (!output) throw new Error(`UI filehandle must be writable: ${value}`);
+        selector = body.slice(3);
+        if (!selector) throw new Error(`Invalid browser filehandle spec ${value}`);
+        const element2 = this.document.querySelector(selector);
+        if (!element2) throw new Error(`No element matches ${selector}`);
+        this.handles.set(name, { type: "ui", element: element2, renderer: new DOMUIRenderer(this.document, element2) });
+        return;
+      } else if (body.startsWith("dom:")) {
         type = "dom";
         selector = body.slice(4);
       } else if (body.startsWith("event:")) {
@@ -898,8 +1325,21 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       handle.element.addEventListener(handle.event, listener);
       this.listeners.push(() => handle.element.removeEventListener(handle.event, listener));
     }
+    /** @param {string} name */
+    validateUI(name) {
+      const handle = this.require(name);
+      if (handle.type !== "ui") throw new Error(`${name} is not a UI filehandle`);
+    }
+    /** @param {string} name @param {import('./ui.js').UITreeBuilder['root']} tree @param {(sub:string|null,args:*[],updates:Array<[string,*]>)=>void} dispatch */
+    commitUI(name, tree, dispatch) {
+      this.validateUI(name);
+      const handle = this.require(name);
+      if (handle.type !== "ui") return;
+      handle.renderer.commit(tree, dispatch);
+    }
     dispose() {
       for (const remove of this.listeners.splice(0)) remove();
+      for (const handle of this.handles.values()) if (handle.type === "ui") handle.renderer.dispose();
     }
   };
 

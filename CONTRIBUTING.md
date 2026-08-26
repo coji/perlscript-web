@@ -1,6 +1,6 @@
 # Contributing
 
-Issues and pull requests are welcome. Changes to language behavior must include conformance tests and must agree with [Perl 1 Web Profile 1.0](docs/PERL1-WEB-PROFILE.md). Proposed syntax outside that profile should explain its compatibility and migration impact.
+Issues and pull requests are welcome. Changes to language behavior must include conformance tests and must agree with [Perl 1 Web Profile 1.0](docs/PERL1-WEB-PROFILE.md). PerlUI changes must also agree with the [PerlUI 1.0 Profile](docs/PERLUI-1.0.md) and include renderer plus browser coverage. Proposed syntax outside the language profile should explain its compatibility and migration impact.
 
 ## Local checks
 

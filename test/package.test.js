@@ -6,7 +6,7 @@ import * as api from "perlscript-web";
 
 test("the ESM package boundary exposes core and browser APIs without a document", () => {
   for (const name of [
-    "Lexer", "Parser", "Runtime", "MemoryIO", "BrowserIO",
+    "Lexer", "Parser", "Runtime", "MemoryIO", "BrowserIO", "UITreeBuilder", "DOMUIRenderer",
     "tokenize", "parse", "run", "runScripts", "disposeScript", "setErrorHandler",
     "PerlScriptSyntaxError", "PerlScriptRuntimeError",
   ]) assert.equal(typeof api[name], "function", `${name} must be exported`);

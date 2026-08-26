@@ -15,6 +15,10 @@ export declare class MemoryIO {
     clear(name?: string): void;
     /** @param {string} _handleName @param {string} _subName @param {Function} _callback */
     watch(_handleName: string, _subName: string, _callback: Function): void;
+    /** @param {string} _name */
+    validateUI(_name: string): void;
+    /** @param {string} _name @param {*} _tree @param {(sub:string|null,args:*[],updates:Array<[string,*]>)=>void} _dispatch */
+    commitUI(_name: string, _tree: any, _dispatch: (sub: string | null, args: any[], updates: Array<[string, any]>) => void): void;
     /** @param {string} name @returns {import('./types.js').FileHandle} */
     require(name: string): import('./types.js').FileHandle;
     dispose(): void;

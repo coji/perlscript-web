@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PerlUI Todo</title>
+<style>
+  *{box-sizing:border-box}body{min-height:100vh;margin:0;background:#f6f7fb;color:#18181b;font:16px/1.5 Inter,ui-sans-serif,system-ui}.shell{width:min(92vw,680px);margin:8vh auto;padding:36px;border:1px solid #e4e4e7;border-radius:24px;background:#fff;box-shadow:0 20px 60px #18181b12}.shell h1{margin:0}.shell>p{color:#71717a}.composer{display:grid;grid-template-columns:1fr auto;gap:10px;margin:24px 0}.composer input{min-width:0;border:1px solid #d4d4d8;border-radius:12px;padding:12px}.shell button{border:0;border-radius:999px;background:#7c3aed;color:#fff;padding:11px 18px;font-weight:700;cursor:pointer}.todos{display:grid;gap:10px;margin:0;padding:0;list-style:none}.todo{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid #e4e4e7;border-radius:14px}.todo span{flex:1}.todo[data-done="1"] span{text-decoration:line-through;color:#a1a1aa}.todo .remove{background:#f4f4f5;color:#52525b}.empty{padding:24px;text-align:center;color:#71717a;border:1px dashed #d4d4d8;border-radius:14px}
+</style>
+<div id="app"></div>
+<script src="../dist/perlscript-web.js"></script>
+<script type="text/perl">
+$draft = "";
+$next_id = 3;
+@ids = (1, 2);
+@todos = ("Learn the old language", "Build the new UI");
+@done = (1, "");
+
+sub add_todo {
+    return if $draft eq "";
+    push(@ids, $next_id);
+    push(@todos, $draft);
+    push(@done, "");
+    $next_id++;
+    $draft = "";
+}
+
+sub toggle_todo {
+    $index = $_[0];
+    $done[$index] = !$done[$index];
+}
+
+sub remove_todo {
+    $remove = $_[0];
+    @next_ids = ();
+    @next_todos = ();
+    @next_done = ();
+    $index = 0;
+    while ($index <= $#todos) {
+        if ($index != $remove) {
+            push(@next_ids, $ids[$index]);
+            push(@next_todos, $todos[$index]);
+            push(@next_done, $done[$index]);
+        }
+        $index++;
+    }
+    @ids = @next_ids;
+    @todos = @next_todos;
+    @done = @next_done;
+}
+
+sub todo_item {
+    $index = $_[0];
+    begin("li", "class", "todo", "data-done", $done[$index]);
+    key($ids[$index]);
+    begin("input", "type", "checkbox", "checked", $done[$index], "aria-label", "Toggle todo");
+    on("click", "toggle_todo", $index);
+    end();
+    begin("span"); text($todos[$index]); end();
+    begin("button", "type", "button", "class", "remove", "aria-label", "Remove todo");
+    on("click", "remove_todo", $index);
+    text("Remove");
+    end();
+    end();
+}
+
+sub view {
+    begin("main", "class", "shell");
+    begin("h1"); text("PerlUI Todo"); end();
+    begin("p"); text("Arrays are collections. Subs are components."); end();
+    begin("form", "class", "composer");
+    on("submit", "add_todo");
+    begin("input", "aria-label", "New todo", "placeholder", "What needs doing?"); bind("value", "draft"); end();
+    begin("button", "type", "submit"); text("Add"); end();
+    end();
+    if ($#todos < 0) {
+        begin("p", "class", "empty"); text("Nothing left to do."); end();
+    } else {
+        begin("ul", "class", "todos");
+        $index = 0;
+        while ($index <= $#todos) {
+            do todo_item($index);
+            $index++;
+        }
+        end();
+    }
+    end();
+}
+
+open APP, ">ui:#app";
+mount(APP, "view");
+</script>
+

@@ -10,55 +10,60 @@
 </style>
 <main>
   <section class="pane code"><div class="eyebrow">1987 → 2026</div><h1>Perl is the UI.</h1><p>Edit the code, then press Run to launch the web app on the right.</p><div class="toolbar"><div class="file-meta"><span>app.pl</span><span class="run-status" id="run-status" role="status" aria-live="polite">Not run</span></div><button class="run" id="run">Run Perl</button></div><div class="error" id="error" role="alert" hidden><strong id="error-title"></strong><pre id="error-detail"></pre></div><textarea class="editor" id="source" spellcheck="false"></textarea></section>
-  <section class="pane"><div class="idle-preview" id="idle-preview"><div><strong>Preview not running</strong><span>Edit <code>app.pl</code>, then press Run Perl.</span></div></div><div class="app" id="preview" hidden><section class="console" aria-labelledby="stdout-label"><div class="console-head"><strong id="stdout-label">STDOUT</strong><span class="console-state" id="stdout-state">No output</span></div><pre class="stdout" id="stdout" aria-live="polite">&lt;no output&gt;</pre></section><div class="eyebrow">PerlScript Web BBS</div><h1>Guestbook</h1><div class="composer"><input id="name" placeholder="name"><input id="message" placeholder="message (Enter to post)"><button id="post">Post</button></div><div class="search"><input id="search" placeholder="regex: perl|yapc"></div><div class="meta"><h2>Posts</h2><strong><span id="count">0</span> total</strong></div><div class="feed" id="posts"></div></div></section>
+  <section class="pane"><div class="idle-preview" id="idle-preview"><div><strong>Preview not running</strong><span>Edit <code>app.pl</code>, then press Run Perl.</span></div></div><div class="app" id="preview" hidden><section class="console" aria-labelledby="stdout-label"><div class="console-head"><strong id="stdout-label">STDOUT</strong><span class="console-state" id="stdout-state">No output</span></div><pre class="stdout" id="stdout" aria-live="polite">&lt;no output&gt;</pre></section><div id="app-root"></div></div></section>
 </main>
 <script src="../dist/perlscript-web.js"></script>
 <script id="app" type="text/plain" data-perlscript>
-open NAME,    "dom:#name";
-open MESSAGE, "dom:#message";
-open SEARCH,  "dom:#search";
-open POSTS,   ">dom:#posts";
-open COUNT,   ">dom:#count";
-open POST,    "event:click:#post";
-open ENTER,   "event:keydown:#message";
-open FIND,    "event:input:#search";
-
+$name = "";
+$message = "";
+$search = "";
+$next_id = 1;
+@ids = ();
 @names = ();
 @messages = ();
-$count = 0;
 
 sub post {
-    $name = <NAME>;
-    $message = <MESSAGE>;
     $name = "anonymous" if $name eq "";
     return if $message eq "";
+    push(@ids, $next_id);
     push(@names, $name);
     push(@messages, $message);
-    print MESSAGE "";
-    $count++;
-    do render();
+    $next_id++;
+    $message = "";
 }
 
-sub render {
-    $query = <SEARCH>;
-    select POSTS;
-    do clear();
+sub view {
+    begin("div");
+    begin("div", "class", "eyebrow"); text("PerlUI Guestbook"); end();
+    begin("h1"); text("Guestbook"); end();
+    begin("form", "class", "composer");
+    on("submit", "post");
+    begin("input", "id", "name", "aria-label", "Name", "placeholder", "name"); bind("value", "name"); end();
+    begin("input", "id", "message", "aria-label", "Message", "placeholder", "message (Enter to post)"); bind("value", "message"); end();
+    begin("button", "id", "post", "type", "submit"); text("Post"); end();
+    end();
+    begin("div", "class", "search");
+    begin("input", "id", "search", "aria-label", "Filter posts", "placeholder", "regex: perl|yapc"); bind("value", "search"); end();
+    end();
+    begin("div", "class", "meta");
+    begin("h2"); text("Posts"); end();
+    begin("strong"); begin("span", "id", "count"); text($#messages + 1); end(); text(" total"); end();
+    end();
+    begin("div", "class", "feed", "id", "posts", "aria-live", "polite");
     $i = 0;
     while ($i <= $#messages) {
         $line = $names[$i] . " " . $messages[$i];
-        if ($query eq "" || $line =~ /$query/i) { print $names[$i], "\t", $messages[$i], "\n"; }
+        if ($search eq "" || $line =~ /$search/i) {
+            begin("div"); key($ids[$i]); text($names[$i]); text("\t"); text($messages[$i]); text("\n"); end();
+        }
         $i++;
     }
-    select COUNT;
-    do clear();
-    print $count;
-    select STDOUT;
+    end();
+    end();
 }
 
-do render();
-do watch(POST, "post");
-do watch(ENTER, "post");
-do watch(FIND, "render");
+open APP, ">ui:#app-root";
+mount(APP, "view");
 </script>
 <script>
   const perl = document.querySelector('#app');
@@ -72,7 +77,7 @@ do watch(FIND, "render");
   const preview = document.querySelector('#preview');
   const stdout = document.querySelector('#stdout');
   const stdoutState = document.querySelector('#stdout-state');
-  const previewDefaults = { name: '', message: '', search: '', posts: '', count: '0' };
+  const appRoot = document.querySelector('#app-root');
   let activeRuntimes = [];
   let manualRuns = 0;
   const showError = error => {
@@ -81,17 +86,6 @@ do watch(FIND, "render");
     errorPanel.hidden = false;
   };
   const clearError = () => { errorPanel.hidden = true; };
-  const previewState = () => Object.fromEntries(Object.keys(previewDefaults).map(id => {
-    const element = document.querySelector(`#${id}`);
-    return [id, 'value' in element ? element.value : element.textContent];
-  }));
-  const resetUntouchedPreview = before => {
-    for (const [id, defaultValue] of Object.entries(previewDefaults)) {
-      const element = document.querySelector(`#${id}`);
-      const property = 'value' in element ? 'value' : 'textContent';
-      if (element[property] === before[id]) element[property] = defaultValue;
-    }
-  };
   const syncStdout = () => {
     const output = activeRuntimes.map(runtime => {
       try { return runtime.io.read('STDOUT'); } catch { return ''; }
@@ -101,7 +95,7 @@ do watch(FIND, "render");
   };
   PerlScript.setErrorHandler(showError);
   editor.value = perl.textContent.trim();
-  document.querySelector('#search').addEventListener('input', clearError);
+  preview.addEventListener('input', clearError, true);
   setInterval(() => { if (activeRuntimes.length) syncStdout(); }, 100);
   runButton.addEventListener('click', async () => {
     clearError();
@@ -111,14 +105,13 @@ do watch(FIND, "render");
     runStatus.dataset.state = 'running';
     stdoutState.textContent = 'Running…';
     delete preview.dataset.runState;
-    const before = previewState();
     perl.textContent = editor.value;
     perl.type = 'text/perl';
     await new Promise(requestAnimationFrame);
     try {
       const runtimes = await PerlScript.runScripts();
       activeRuntimes = runtimes;
-      resetUntouchedPreview(before);
+      if (!runtimes.some(runtime => runtime.mounts.size)) appRoot.replaceChildren();
       syncStdout();
       manualRuns++;
       runStatus.textContent = `Run ${manualRuns} complete`;

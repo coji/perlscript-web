@@ -2,7 +2,7 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="A Perl 1.0-shaped language for the browser, with DOM elements and events exposed as filehandles.">
+<meta name="description" content="Perl 1.0 syntax. 2026 runtime. A reactive UI framework for the browser.">
 <title>perlscript-web</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -90,10 +90,10 @@ dialog::backdrop { background: var(--color-overlay); }
   <section class="hero shell">
     <div class="hero-copy">
       <h1>Perl is the UI.</h1>
-      <p>A deliberately small Perl 1-shaped language for the browser. DOM elements are filehandles. Events are streams. Output stays text.</p>
+      <p>Perl 1.0 syntax. 2026 runtime. Scalars are state, arrays are collections, subs are components, and the interface follows the data.</p>
       <div class="actions">
         <a class="primary" href="./examples/bbs.html">Run the BBS</a>
-        <a class="secondary" href="https://github.com/coji/perlscript-web/blob/main/docs/PERL1-WEB-PROFILE.md">Read the profile</a>
+        <a class="secondary" href="https://github.com/coji/perlscript-web/blob/main/docs/PERLUI-1.0.md">Read the PerlUI profile</a>
       </div>
     </div>
     <div class="workbench">
@@ -107,36 +107,43 @@ dialog::backdrop { background: var(--color-overlay); }
   <section class="quickstart">
     <div class="quickstart-inner shell">
       <div class="quickstart-copy">
-        <h2>HTML outside. Perl inside.</h2>
-        <p>Load one browser bundle, open a DOM filehandle, and print. No framework owns the page.</p>
+        <h2>Change the Perl data. The interface follows.</h2>
+        <p>Load one browser bundle and mount a named view. No JSX, DOM query, JavaScript callback, or new Perl syntax.</p>
       </div>
       <div class="code">
         <div class="code-head"><span>hello.html</span><button class="copy" id="copy-code" type="button" data-copy-target="quick-code">Copy</button></div>
         <pre id="quick-code"><code>&lt;script src="https://cdn.jsdelivr.net/npm/perlscript-web/dist/perlscript-web.min.js"&gt;&lt;/script&gt;
-&lt;output id="hello"&gt;&lt;/output&gt;
+&lt;div id="app"&gt;&lt;/div&gt;
 &lt;script type="text/perl"&gt;
-<span class="tok">open</span> HELLO, "&gt;dom:#hello";
-<span class="tok">select</span> HELLO;
-<span class="tok">print</span> "Hello from Perl.";
+$count = 0;
+<span class="tok">sub</span> increment { $count++; }
+<span class="tok">sub</span> view {
+  begin("button");
+  on("click", "increment");
+  text("Count: $count");
+  end();
+}
+<span class="tok">open</span> APP, "&gt;ui:#app";
+mount(APP, "view");
 &lt;/script&gt;</code></pre>
       </div>
     </div>
   </section>
 
-  <section class="shell" aria-label="Release candidate facts">
+  <section class="shell" aria-label="PerlUI facts">
     <ul class="facts">
-      <li><span>Profile</span><strong>Perl 1 Web 1.0</strong></li>
-      <li><span>Release</span><strong>1.0.0-rc.1</strong></li>
-      <li><span>Runtime tests</span><strong>50 passing</strong></li>
+      <li><span>Profiles</span><strong>Perl 1 Web · PerlUI 1.0</strong></li>
+      <li><span>Release</span><strong>1.0.0</strong></li>
+      <li><span>Runtime tests</span><strong>59 passing</strong></li>
       <li><span>Browser engines</span><strong>Chromium · Firefox · WebKit</strong></li>
     </ul>
   </section>
 </main>
 <footer class="footer shell">
-  <p class="footer-line">Make the browser a UNIX that Perl can understand.</p>
+  <p class="footer-line">The future of UI, written in 1987.</p>
   <div class="footer-meta">
     <span class="wordmark">perlscript-web · MIT</span>
-    <span class="footer-links"><a href="https://github.com/coji/perlscript-web">GitHub</a><a href="./examples/hello.html">Hello demo</a></span>
+    <span class="footer-links"><a href="https://github.com/coji/perlscript-web">GitHub</a><a href="./examples/counter.html">Counter</a><a href="./examples/todo.html">Todo</a></span>
   </div>
 </footer>
 
@@ -144,7 +151,8 @@ dialog::backdrop { background: var(--color-overlay); }
   <nav class="palette" aria-label="Quick destinations">
     <p class="palette-title">Open</p>
     <a class="command" href="./examples/bbs.html"><span>Run the BBS</span><code>↵</code></a>
-    <a class="command" href="./examples/hello.html"><span>Open hello demo</span><code>H</code></a>
+    <a class="command" href="./examples/counter.html"><span>Open Counter</span><code>C</code></a>
+    <a class="command" href="./examples/todo.html"><span>Open Todo</span><code>T</code></a>
     <a class="command" href="https://github.com/coji/perlscript-web"><span>View source on GitHub</span><code>G</code></a>
     <button class="command" id="close-palette" type="button"><span>Close palette</span><code>Esc</code></button>
   </nav>
