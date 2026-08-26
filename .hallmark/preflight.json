@@ -1,0 +1,8 @@
+{
+  "date": "2026-08-26",
+  "font_stack": "system sans + monospace in examples/bbs.html",
+  "palette": "dark code surface with a purple signal accent",
+  "motion": "motion-cut; no motion library",
+  "spacing": "vanilla CSS without shared tokens",
+  "framework": "vanilla HTML"
+}

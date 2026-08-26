@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="A Perl 1.0-shaped language for the browser, with DOM elements and events exposed as filehandles.">
+<title>perlscript-web</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css">
+<style>
+/* Hallmark · genre: modern-minimal · macrostructure: Workbench · theme: Cobalt · enrichment: live iframe · nav: N9 · footer: Ft5 · contrast: pass (40–41) · slop: pass (42–45) · honest: pass (46) · chrome: pass (47) · tokens: pass (48) · responsive: pass (49) · icons: pass (30) · mobile: pass (34, 49, 50–57) */
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V4 */
+* { box-sizing: border-box; }
+html, body { margin: 0; overflow-x: clip; }
+body { background: var(--color-paper); color: var(--color-ink-2); font-family: var(--font-body); font-size: var(--text-base); line-height: 1.6; }
+a { color: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+.shell { width: min(100% - var(--space-xl), var(--page-max)); margin-inline: auto; }
+.nav { display: flex; align-items: center; justify-content: space-between; min-height: var(--nav-height); border-block-end: var(--rule-thin) solid var(--color-rule); }
+.wordmark { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 600; letter-spacing: -0.03em; text-decoration: none; white-space: nowrap; }
+.cmd, .primary, .secondary, .copy { min-height: var(--target-min); border-radius: var(--radius-control); border: var(--rule-thin) solid var(--color-rule-strong); padding-inline: var(--space-md); display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); color: var(--color-ink); background: var(--color-paper); font: 500 var(--text-sm)/1 var(--font-body); text-decoration: none; white-space: nowrap; cursor: pointer; transition: transform var(--dur-micro) var(--ease-out), background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out); }
+.cmd:hover, .secondary:hover, .copy:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.primary { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); }
+.primary:hover { background: var(--color-accent-hover); border-color: var(--color-accent-hover); }
+.cmd:active, .primary:active, .secondary:active, .copy:active { transform: translateY(var(--press-offset)); }
+.cmd:focus-visible, .primary:focus-visible, .secondary:focus-visible, .copy:focus-visible, .command:focus-visible, .footer a:focus-visible { outline: var(--rule-focus) solid var(--color-focus); outline-offset: var(--space-2xs); }
+.cmd[aria-disabled="true"], .primary[aria-disabled="true"], .secondary[aria-disabled="true"], .copy[aria-disabled="true"], [data-state="disabled"] { cursor: not-allowed; opacity: var(--opacity-disabled); pointer-events: none; }
+[data-state="loading"] { cursor: progress; }
+[data-state="error"] { border-style: dashed; border-color: var(--color-error); }
+[data-state="success"] { border-color: var(--color-success); }
+.hero { display: grid; gap: var(--space-xl); padding-block: var(--space-2xl) var(--space-3xl); }
+.hero-copy { display: grid; align-content: start; gap: var(--space-lg); max-width: var(--measure-wide); animation: settle var(--dur-long) var(--ease-out) both; }
+.hero h1 { min-width: 0; margin: 0; color: var(--color-ink); font-family: var(--font-display); font-size: var(--text-display); font-weight: 700; line-height: 1.02; letter-spacing: -0.045em; overflow-wrap: anywhere; }
+.hero p { margin: 0; max-width: var(--measure-body); font-size: var(--text-md); color: var(--color-muted); }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+.workbench { min-width: 0; animation: settle var(--dur-long) var(--ease-out) var(--dur-stagger) both; }
+.demo-frame { margin: 0; border: var(--rule-thin) solid var(--color-rule-strong); border-radius: var(--radius-surface); overflow: clip; background: var(--color-graphite); box-shadow: var(--shadow-whisper); }
+.demo-frame iframe { display: block; width: 100%; height: var(--demo-height-mobile); border: 0; background: var(--color-paper); }
+.demo-frame figcaption { display: flex; justify-content: space-between; gap: var(--space-md); padding: var(--space-sm) var(--space-md); color: var(--color-code-muted); background: var(--color-graphite); font: 500 var(--text-xs)/1.5 var(--font-mono); font-variant-numeric: tabular-nums; }
+.quickstart { margin-block-start: var(--space-3xl); background: var(--color-graphite); color: var(--color-code); }
+.quickstart-inner { display: grid; gap: var(--space-xl); padding-block: var(--space-2xl); }
+.quickstart-copy { display: grid; align-content: start; gap: var(--space-md); }
+.quickstart h2, .footer-line { margin: 0; font-family: var(--font-display); font-weight: 700; letter-spacing: -0.035em; }
+.quickstart h2 { color: var(--color-code); font-size: var(--text-2xl); line-height: 1.1; }
+.quickstart p { margin: 0; color: var(--color-code-muted); max-width: var(--measure-body); }
+.code { min-width: 0; border-block: var(--rule-thin) solid var(--color-code-rule); padding-block: var(--space-md); }
+.code-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); margin-block-end: var(--space-md); color: var(--color-code-muted); font: 500 var(--text-xs)/1 var(--font-mono); }
+.copy { min-height: var(--target-compact); color: var(--color-code); background: var(--color-graphite); border-color: var(--color-code-rule); font-family: var(--font-mono); }
+pre { margin: 0; overflow: auto; color: var(--color-code); font: 400 var(--text-sm)/1.75 var(--font-mono); tab-size: 2; }
+.tok { color: var(--color-accent-light); }
+.facts { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; padding: 0; list-style: none; border-block-end: var(--rule-thin) solid var(--color-rule); }
+.facts li { display: flex; justify-content: space-between; gap: var(--space-md); padding-block: var(--space-md); border-block-start: var(--rule-thin) solid var(--color-rule); }
+.facts span:first-child { color: var(--color-muted); }
+.facts strong { color: var(--color-ink); font-family: var(--font-mono); font-size: var(--text-sm); font-variant-numeric: tabular-nums; text-align: end; }
+.footer { padding-block: var(--space-3xl) var(--space-xl); }
+.footer-line { max-width: 28ch; color: var(--color-ink); font-size: var(--text-3xl); line-height: 1.05; }
+.footer-meta { display: flex; flex-direction: column; gap: var(--space-md); margin-block-start: var(--space-2xl); padding-block-start: var(--space-md); border-block-start: var(--rule-thin) solid var(--color-rule); color: var(--color-muted); font-size: var(--text-sm); }
+.footer-links { display: flex; flex-wrap: wrap; gap: var(--space-lg); }
+.footer a { white-space: nowrap; text-underline-offset: var(--space-2xs); }
+dialog { width: min(calc(100% - var(--space-xl)), var(--dialog-max)); padding: 0; border: var(--rule-thin) solid var(--color-rule-strong); border-radius: var(--radius-surface); color: var(--color-ink-2); background: var(--color-paper); box-shadow: var(--shadow-dialog); }
+dialog::backdrop { background: var(--color-overlay); }
+.palette { padding: var(--space-sm); }
+.palette-title { margin: 0; padding: var(--space-sm); color: var(--color-muted); font: 500 var(--text-xs)/1 var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
+.command { width: 100%; min-height: var(--target-min); display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); padding: var(--space-sm) var(--space-md); border: 0; border-radius: var(--radius-control); color: var(--color-ink-2); background: transparent; font: 500 var(--text-base)/1.3 var(--font-body); text-decoration: none; cursor: pointer; }
+.command:hover, .command[aria-selected="true"] { color: var(--color-accent); background: var(--color-paper-2); }
+.command code { color: var(--color-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
+@keyframes settle { from { opacity: 0; transform: translateY(var(--reveal-offset)); } to { opacity: 1; transform: none; } }
+@media (min-width: 40rem) {
+  .shell { width: min(100% - var(--space-2xl), var(--page-max)); }
+  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-xl); }
+  .footer-meta { flex-direction: row; align-items: baseline; justify-content: space-between; }
+}
+@media (min-width: 60rem) {
+  .hero { grid-template-columns: minmax(18rem, 0.72fr) minmax(0, 1.28fr); gap: var(--space-2xl); align-items: start; padding-block: var(--space-3xl) var(--space-4xl); }
+  .hero-copy { position: sticky; top: var(--space-xl); }
+  .demo-frame iframe { height: var(--demo-height-desktop); }
+  .quickstart-inner { grid-template-columns: minmax(16rem, 0.65fr) minmax(0, 1.35fr); gap: var(--space-3xl); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-copy, .workbench { animation: none; }
+  .cmd, .primary, .secondary, .copy { transition-duration: var(--dur-reduced); }
+}
+</style>
+<header class="nav shell">
+  <a class="wordmark" href="./" aria-label="perlscript-web home">perlscript-web</a>
+  <button class="cmd" id="open-palette" type="button" aria-haspopup="dialog" aria-controls="command-palette">Open <kbd>⌘K</kbd></button>
+</header>
+<main>
+  <section class="hero shell">
+    <div class="hero-copy">
+      <h1>Perl is the UI.</h1>
+      <p>A deliberately small Perl 1-shaped language for the browser. DOM elements are filehandles. Events are streams. Output stays text.</p>
+      <div class="actions">
+        <a class="primary" href="./examples/bbs.html">Run the BBS</a>
+        <a class="secondary" href="https://github.com/coji/perlscript-web/blob/main/docs/PERL1-WEB-PROFILE.md">Read the profile</a>
+      </div>
+    </div>
+    <div class="workbench">
+      <figure class="demo-frame">
+        <iframe src="./examples/bbs.html" title="Editable perlscript-web BBS demo"></iframe>
+        <figcaption><span>LIVE · examples/bbs.html</span><span>edit → run → post</span></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="quickstart">
+    <div class="quickstart-inner shell">
+      <div class="quickstart-copy">
+        <h2>HTML outside. Perl inside.</h2>
+        <p>Load one browser bundle, open a DOM filehandle, and print. No framework owns the page.</p>
+      </div>
+      <div class="code">
+        <div class="code-head"><span>hello.html</span><button class="copy" id="copy-code" type="button" data-copy-target="quick-code">Copy</button></div>
+        <pre id="quick-code"><code>&lt;script src="./dist/perlscript-web.min.js"&gt;&lt;/script&gt;
+&lt;output id="hello"&gt;&lt;/output&gt;
+&lt;script type="text/perl"&gt;
+<span class="tok">open</span> HELLO, "&gt;dom:#hello";
+<span class="tok">select</span> HELLO;
+<span class="tok">print</span> "Hello from Perl.";
+&lt;/script&gt;</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="shell" aria-label="Release candidate facts">
+    <ul class="facts">
+      <li><span>Profile</span><strong>Perl 1 Web 1.0</strong></li>
+      <li><span>Release</span><strong>1.0.0-rc.1</strong></li>
+      <li><span>Runtime tests</span><strong>50 passing</strong></li>
+      <li><span>Browser engines</span><strong>Chromium · Firefox · WebKit</strong></li>
+    </ul>
+  </section>
+</main>
+<footer class="footer shell">
+  <p class="footer-line">Make the browser a UNIX that Perl can understand.</p>
+  <div class="footer-meta">
+    <span class="wordmark">perlscript-web · MIT</span>
+    <span class="footer-links"><a href="https://github.com/coji/perlscript-web">GitHub</a><a href="./examples/hello.html">Hello demo</a></span>
+  </div>
+</footer>
+
+<dialog id="command-palette">
+  <nav class="palette" aria-label="Quick destinations">
+    <p class="palette-title">Open</p>
+    <a class="command" href="./examples/bbs.html"><span>Run the BBS</span><code>↵</code></a>
+    <a class="command" href="./examples/hello.html"><span>Open hello demo</span><code>H</code></a>
+    <a class="command" href="https://github.com/coji/perlscript-web"><span>View source on GitHub</span><code>G</code></a>
+    <button class="command" id="close-palette" type="button"><span>Close palette</span><code>Esc</code></button>
+  </nav>
+</dialog>
+<script>
+  const palette = document.querySelector('#command-palette');
+  const openPalette = document.querySelector('#open-palette');
+  const closePalette = document.querySelector('#close-palette');
+  const showPalette = () => { if (!palette.open) { palette.showModal(); palette.querySelector('.command').focus(); } };
+  openPalette.addEventListener('click', showPalette);
+  closePalette.addEventListener('click', () => palette.close());
+  palette.addEventListener('click', event => { if (event.target === palette) palette.close(); });
+  document.addEventListener('keydown', event => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); showPalette(); }
+  });
+
+  const copy = document.querySelector('#copy-code');
+  copy.addEventListener('click', async () => {
+    const source = document.querySelector(`#${copy.dataset.copyTarget}`).innerText;
+    try {
+      await navigator.clipboard.writeText(source);
+      copy.textContent = 'Copied';
+      copy.dataset.state = 'success';
+      setTimeout(() => { copy.textContent = 'Copy'; delete copy.dataset.state; }, 2500);
+    } catch {
+      copy.textContent = 'Copy failed';
+      copy.dataset.state = 'error';
+    }
+  });
+</script>
+</html>

@@ -17,6 +17,8 @@ print "Hello from Perl.";
 
 This is not a revival of ActiveState PerlScript. It is a browser-only interpreter and I/O bridge, installable from npm and usable from a CDN.
 
+Try the live [perlscript-web workbench](https://coji.github.io/perlscript-web/) or open the [editable BBS directly](https://coji.github.io/perlscript-web/examples/bbs.html).
+
 ## Filehandles
 
 ```perl
