@@ -7,13 +7,14 @@
 
 ## Status
 
-- **Execution**: IN PROGRESS — M0-M4 complete; M5 release in progress
+- **Execution**: DONE
 - **Priority**: P1
 - **Effort**: XL, delivered as independently releasable milestones
 - **Risk**: HIGH
 - **Depends on**: Plans 001-006
 - **Category**: product, runtime, UI
 - **Planned at**: `perlscript-web@1.0.0-rc.1`
+- **Released at**: `perlscript-web@1.0.0` / `v1.0.0` on 2026-08-26
 
 ## Product position
 
