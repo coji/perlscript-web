@@ -4,6 +4,7 @@ test("the Pages landing runs the live Counter and opens the command palette", as
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Perl is the UI." })).toBeVisible();
   const demo = page.frameLocator("iframe[title='Live PerlUI Counter demo']");
+  await expect(demo.getByRole("button", { name: "Source" })).toBeVisible();
   await demo.getByRole("button", { name: "Count: 0" }).click();
   await expect(demo.getByRole("button", { name: "Count: 1" })).toBeVisible();
 
