@@ -2,6 +2,8 @@ import { test, expect } from "@playwright/test";
 
 test("PerlUI Counter reacts while preserving its button", async ({ page }) => {
   await page.goto("/examples/counter.html");
+  await expect(page.getByRole("textbox", { name: "Perl source" })).toHaveValue(/\$count = 0;/);
+  await expect(page.getByRole("status")).toHaveText("Run 1 complete");
   const button = page.getByRole("button", { name: "Count: 0" });
   await expect(button).toBeVisible();
   const identity = await button.evaluate(element => {
@@ -11,7 +13,13 @@ test("PerlUI Counter reacts while preserving its button", async ({ page }) => {
   expect(identity).toBe("BUTTON");
   await button.click();
   await expect(page.getByRole("button", { name: "Count: 1" })).toBeVisible();
-  expect(await page.locator("button").evaluate(element => element === globalThis.counterButton)).toBe(true);
+  expect(await page.locator("#app-root button").evaluate(element => element === globalThis.counterButton)).toBe(true);
+
+  const source = page.getByRole("textbox", { name: "Perl source" });
+  await source.fill((await source.inputValue()).replace("$count = 0;", "$count = 41;"));
+  await page.getByRole("button", { name: "Run Perl" }).click();
+  await expect(page.getByRole("button", { name: "Count: 41" })).toBeVisible();
+  await expect(page.getByRole("status")).toHaveText("Run 2 complete");
 });
 
 test("PerlUI Todo binds, submits, toggles, and removes keyed items", async ({ page }) => {
