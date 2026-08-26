@@ -54,6 +54,7 @@ test("a failed editor run preserves the previous app", async ({ page }) => {
   await page.locator("#run").click();
   await expect(page.locator("#error")).toBeVisible();
   await expect(page.locator("#error-title")).toContainText("Undefined subroutine missing");
+  await expect(page.locator("#stdout-state")).toHaveText("No output");
 
   await page.locator("#message").fill("old runtime is alive");
   await page.locator("#post").click();
@@ -75,4 +76,29 @@ test("a successful editor run shows feedback and applies the edited source", asy
   await expect(page.locator("#run-status")).toHaveAttribute("data-state", "success");
   await expect(page.locator("#preview")).toHaveAttribute("data-run-state", "success");
   await expect(page.locator("#count")).toHaveText("7");
+  await expect(page.locator("#stdout")).toHaveText("<no output>");
+});
+
+test("shows STDOUT and resets preview state when the new program leaves the DOM untouched", async ({ page }) => {
+  await startApp(page);
+  await page.locator("#name").fill("coji");
+  await page.locator("#message").fill("old post");
+  await page.locator("#post").click();
+  await expect(page.locator("#count")).toHaveText("1");
+
+  await page.locator("#source").fill('print "hoge";');
+  await page.locator("#run").click();
+
+  await expect(page.locator("#run-status")).toHaveText("Run 2 complete");
+  await expect(page.locator("#stdout")).toHaveText("hoge");
+  await expect(page.locator("#stdout-state")).toHaveText("Output");
+  await expect(page.locator("#count")).toHaveText("0");
+  await expect(page.locator("#posts")).toBeEmpty();
+  await expect(page.locator("#name")).toHaveValue("");
+  await expect(page.locator("#message")).toHaveValue("");
+  await expect(page.locator("#search")).toHaveValue("");
+
+  await page.locator("#message").fill("no old listener");
+  await page.locator("#post").click();
+  await expect(page.locator("#count")).toHaveText("0");
 });
