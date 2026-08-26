@@ -8,25 +8,38 @@ permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
 jobs:
-  npm:
+  publish:
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/perlscript-web/v/${{ steps.release.outputs.version }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/setup@v1
+      - uses: actions/setup-node@v6
         with:
-          runtime: node@22
-          cache: true
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - uses: pnpm/action-setup@v6
+      - run: pnpm install --frozen-lockfile
       - run: pnpm run check
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
       - run: pnpm run test:e2e
-      - name: Verify release tag
-        run: node -e "const p=require('./package.json'); if (process.env.GITHUB_REF_NAME !== 'v' + p.version) throw new Error('release tag and package version differ')"
-      - name: Publish package
+      - name: Resolve release version and npm channel
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
-            pnpm publish --tag next --provenance
-          else
-            pnpm publish --provenance
-          fi
+          VERSION=$(node -p "require('./package.json').version")
+          test "$RELEASE_TAG" = "v$VERSION"
+          CHANNEL=$(node -e "const v=require('./package.json').version; const m=v.match(/-([a-z][a-z0-9-]*)/i); process.stdout.write(m ? m[1] : 'latest')")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
+      - name: Publish with npm Trusted Publishing
+        run: npm publish --access public --provenance --tag "${{ steps.release.outputs.channel }}"
