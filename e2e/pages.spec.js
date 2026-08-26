@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-test("the Pages landing opens the live BBS and command palette", async ({ page }) => {
+test("the Pages landing runs the live Counter and opens the command palette", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Perl is the UI." })).toBeVisible();
-  const demo = page.frameLocator("iframe[title='Editable perlscript-web BBS demo']");
-  await demo.getByRole("button", { name: "Run Perl" }).click();
-  await expect(demo.locator("#count")).toHaveText("0");
+  const demo = page.frameLocator("iframe[title='Live PerlUI Counter demo']");
+  await demo.getByRole("button", { name: "Count: 0" }).click();
+  await expect(demo.getByRole("button", { name: "Count: 1" })).toBeVisible();
 
   await page.getByRole("button", { name: /Open/ }).click();
   const dialog = page.getByRole("dialog");
@@ -24,6 +24,6 @@ for (const width of [320, 375, 414, 768]) {
       content: document.documentElement.scrollWidth,
     }));
     expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
-    await expect(page.getByRole("link", { name: "Run the BBS" })).toHaveCSS("white-space", "nowrap");
+    await expect(page.getByRole("link", { name: "Try the Counter" })).toHaveCSS("white-space", "nowrap");
   });
 }
