@@ -7,7 +7,7 @@ import { FakeElement, createFakeDocument } from "./helpers/fake-dom.js";
 
 test("the shipped BBS keeps its complete interaction contract", async () => {
   const html = await readFile(new URL("../examples/bbs.html", import.meta.url), "utf8");
-  const source = html.match(/<script id="app" type="text\/perl">([\s\S]*?)<\/script>/)[1];
+  const source = html.match(/<script id="app"[^>]*>([\s\S]*?)<\/script>/)[1];
   const elements = Object.fromEntries(["name", "message", "search", "posts", "count", "post"].map(id => [`#${id}`, new FakeElement()]));
   const runtime = new Runtime({ io: new BrowserIO(createFakeDocument(elements).document) });
   runtime.run(source);

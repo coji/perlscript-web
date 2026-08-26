@@ -5,7 +5,17 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("#count")).toHaveText("0");
 });
 
+async function startApp(page) {
+  await expect(page.locator("#idle-preview")).toBeVisible();
+  await expect(page.locator("#preview")).toBeHidden();
+  await page.locator("#run").click();
+  await expect(page.locator("#run-status")).toHaveText("Run 1 complete");
+  await expect(page.locator("#idle-preview")).toBeHidden();
+  await expect(page.locator("#preview")).toBeVisible();
+}
+
 test("posts, filters, and ignores IME composition", async ({ page }) => {
+  await startApp(page);
   await page.locator("#message").fill("first");
   await page.locator("#post").click();
   await page.locator("#name").fill("coji");
@@ -24,6 +34,7 @@ test("posts, filters, and ignores IME composition", async ({ page }) => {
 });
 
 test("shows event errors and recovers with the same listener", async ({ page }) => {
+  await startApp(page);
   await page.locator("#message").fill("Perl survives");
   await page.locator("#post").click();
 
@@ -37,6 +48,7 @@ test("shows event errors and recovers with the same listener", async ({ page }) 
 });
 
 test("a failed editor run preserves the previous app", async ({ page }) => {
+  await startApp(page);
   const original = await page.locator("#source").inputValue();
   await page.locator("#source").fill("do missing();");
   await page.locator("#run").click();
@@ -50,7 +62,7 @@ test("a failed editor run preserves the previous app", async ({ page }) => {
   await page.locator("#source").fill(original);
   await page.locator("#run").click();
   await expect(page.locator("#error")).toBeHidden();
-  await expect(page.locator("#run-status")).toHaveText("Run 1 complete");
+  await expect(page.locator("#run-status")).toHaveText("Run 2 complete");
   await expect(page.locator("#count")).toHaveText("0");
 });
 
