@@ -4,11 +4,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>perlscript-web BBS</title>
 <style>
-  *{box-sizing:border-box}body{margin:0;background:#f6f7fb;color:#18181b;font:15px/1.55 Inter,ui-sans-serif,system-ui}main{display:grid;grid-template-columns:minmax(360px,1fr) minmax(360px,1fr);min-height:100vh}.pane{padding:clamp(20px,4vw,56px)}.code{background:#17171c;color:#ececf1}.eyebrow{font-weight:700;color:#7c3aed;letter-spacing:.12em;text-transform:uppercase}.code .eyebrow{color:#c4b5fd}h1{font-size:clamp(32px,5vw,64px);line-height:1;margin:.3em 0}.editor{width:100%;min-height:680px;resize:vertical;border:1px solid #34343c;border-radius:16px;background:#222228;color:#f4f4f5;padding:20px;font:14px/1.65 ui-monospace,SFMono-Regular,monospace}.toolbar{display:flex;align-items:center;justify-content:space-between;margin:16px 0}.run,button{border:0;border-radius:999px;background:#7c3aed;color:white;padding:11px 18px;font-weight:700;cursor:pointer}.error{margin:0 0 16px;border:1px solid #f87171;border-radius:12px;background:#450a0a;color:#fecaca;padding:12px 14px}.error strong{display:block;margin-bottom:4px}.error pre{margin:0;overflow:auto;white-space:pre-wrap;font:12px/1.5 ui-monospace,SFMono-Regular,monospace}.app{max-width:720px}.composer,.search,.feed{background:white;border:1px solid #e4e4e7;border-radius:18px;box-shadow:0 8px 30px #18181b0c}.composer{padding:18px;display:grid;grid-template-columns:1fr 2fr auto;gap:10px}.search{margin:18px 0;padding:14px}.composer input,.search input{width:100%;border:1px solid #d4d4d8;border-radius:10px;padding:11px;background:#fafafa}.feed{padding:20px;min-height:230px;white-space:pre-wrap;font:15px/2 ui-monospace,SFMono-Regular,monospace}.meta{display:flex;justify-content:space-between;align-items:center}@media(max-width:850px){main{grid-template-columns:1fr}.editor{min-height:420px}}
+  *{box-sizing:border-box}body{margin:0;background:#f6f7fb;color:#18181b;font:15px/1.55 Inter,ui-sans-serif,system-ui}main{display:grid;grid-template-columns:minmax(360px,1fr) minmax(360px,1fr);min-height:100vh}.pane{padding:clamp(20px,4vw,56px)}.code{background:#17171c;color:#ececf1}.eyebrow{font-weight:700;color:#7c3aed;letter-spacing:.12em;text-transform:uppercase}.code .eyebrow{color:#c4b5fd}h1{font-size:clamp(32px,5vw,64px);line-height:1;margin:.3em 0}.editor{width:100%;min-height:680px;resize:vertical;border:1px solid #34343c;border-radius:16px;background:#222228;color:#f4f4f5;padding:20px;font:14px/1.65 ui-monospace,SFMono-Regular,monospace}.toolbar,.file-meta{display:flex;align-items:center}.toolbar{justify-content:space-between;gap:16px;margin:16px 0}.file-meta{gap:10px}.run-status{color:#a1a1aa;font:12px/1.4 ui-monospace,SFMono-Regular,monospace}.run-status[data-state="running"]{color:#fde68a}.run-status[data-state="success"]{color:#86efac}.run-status[data-state="error"]{color:#fca5a5}.run,button{border:0;border-radius:999px;background:#7c3aed;color:white;padding:11px 18px;font-weight:700;cursor:pointer}.run:disabled{cursor:wait;opacity:.7}.error{margin:0 0 16px;border:1px solid #f87171;border-radius:12px;background:#450a0a;color:#fecaca;padding:12px 14px}.error strong{display:block;margin-bottom:4px}.error pre{margin:0;overflow:auto;white-space:pre-wrap;font:12px/1.5 ui-monospace,SFMono-Regular,monospace}.app{max-width:720px}.app[data-run-state="success"]{animation:rerun 500ms ease-out}.composer,.search,.feed{background:white;border:1px solid #e4e4e7;border-radius:18px;box-shadow:0 8px 30px #18181b0c}.composer{padding:18px;display:grid;grid-template-columns:1fr 2fr auto;gap:10px}.search{margin:18px 0;padding:14px}.composer input,.search input{width:100%;border:1px solid #d4d4d8;border-radius:10px;padding:11px;background:#fafafa}.feed{padding:20px;min-height:230px;white-space:pre-wrap;font:15px/2 ui-monospace,SFMono-Regular,monospace}.meta{display:flex;justify-content:space-between;align-items:center}@keyframes rerun{from{outline:3px solid #a78bfa;outline-offset:8px}to{outline:3px solid transparent;outline-offset:16px}}@media(max-width:850px){main{grid-template-columns:1fr}.editor{min-height:420px}}@media(prefers-reduced-motion:reduce){.app[data-run-state="success"]{animation:none}}
 </style>
 <main>
-  <section class="pane code"><div class="eyebrow">1987 → 2026</div><h1>Perl is the UI.</h1><p>編集して Run を押すと、同じWebアプリを再実行します。</p><div class="toolbar"><span>app.pl</span><button class="run" id="run">Run Perl</button></div><div class="error" id="error" role="alert" hidden><strong id="error-title"></strong><pre id="error-detail"></pre></div><textarea class="editor" id="source" spellcheck="false"></textarea></section>
-  <section class="pane"><div class="app"><div class="eyebrow">PerlScript Web BBS</div><h1>Guestbook</h1><div class="composer"><input id="name" placeholder="name"><input id="message" placeholder="message (Enter to post)"><button id="post">Post</button></div><div class="search"><input id="search" placeholder="regex: perl|yapc"></div><div class="meta"><h2>Posts</h2><strong><span id="count">0</span> total</strong></div><div class="feed" id="posts"></div></div></section>
+  <section class="pane code"><div class="eyebrow">1987 → 2026</div><h1>Perl is the UI.</h1><p>編集して Run を押すと、右のWebアプリを新しい状態で再実行します。</p><div class="toolbar"><div class="file-meta"><span>app.pl</span><span class="run-status" id="run-status" role="status" aria-live="polite">Ready</span></div><button class="run" id="run">Run Perl</button></div><div class="error" id="error" role="alert" hidden><strong id="error-title"></strong><pre id="error-detail"></pre></div><textarea class="editor" id="source" spellcheck="false"></textarea></section>
+  <section class="pane"><div class="app" id="preview"><div class="eyebrow">PerlScript Web BBS</div><h1>Guestbook</h1><div class="composer"><input id="name" placeholder="name"><input id="message" placeholder="message (Enter to post)"><button id="post">Post</button></div><div class="search"><input id="search" placeholder="regex: perl|yapc"></div><div class="meta"><h2>Posts</h2><strong><span id="count">0</span> total</strong></div><div class="feed" id="posts"></div></div></section>
 </main>
 <script src="../dist/perlscript-web.js"></script>
 <script id="app" type="text/perl">
@@ -64,6 +64,10 @@ do watch(FIND, "render");
   const errorPanel = document.querySelector('#error');
   const errorTitle = document.querySelector('#error-title');
   const errorDetail = document.querySelector('#error-detail');
+  const runButton = document.querySelector('#run');
+  const runStatus = document.querySelector('#run-status');
+  const preview = document.querySelector('#preview');
+  let manualRuns = 0;
   const showError = error => {
     errorTitle.textContent = `${error.name}: ${error.message}`;
     errorDetail.textContent = error.excerpt || '';
@@ -73,10 +77,29 @@ do watch(FIND, "render");
   PerlScript.setErrorHandler(showError);
   editor.value = perl.textContent.trim();
   document.querySelector('#search').addEventListener('input', clearError);
-  document.querySelector('#run').addEventListener('click', async () => {
+  runButton.addEventListener('click', async () => {
     clearError();
+    runButton.disabled = true;
+    runButton.textContent = 'Running…';
+    runStatus.textContent = 'Running…';
+    runStatus.dataset.state = 'running';
+    delete preview.dataset.runState;
     perl.textContent = editor.value;
-    try { await PerlScript.runScripts(); } catch (error) { showError(error); }
+    await new Promise(requestAnimationFrame);
+    try {
+      await PerlScript.runScripts();
+      manualRuns++;
+      runStatus.textContent = `Run ${manualRuns} complete`;
+      runStatus.dataset.state = 'success';
+      preview.dataset.runState = 'success';
+    } catch (error) {
+      showError(error);
+      runStatus.textContent = 'Run failed';
+      runStatus.dataset.state = 'error';
+    } finally {
+      runButton.disabled = false;
+      runButton.textContent = 'Run Perl';
+    }
   });
 </script>
 </html>

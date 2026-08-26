@@ -50,5 +50,17 @@ test("a failed editor run preserves the previous app", async ({ page }) => {
   await page.locator("#source").fill(original);
   await page.locator("#run").click();
   await expect(page.locator("#error")).toBeHidden();
+  await expect(page.locator("#run-status")).toHaveText("Run 1 complete");
   await expect(page.locator("#count")).toHaveText("0");
+});
+
+test("a successful editor run shows feedback and applies the edited source", async ({ page }) => {
+  const source = await page.locator("#source").inputValue();
+  await page.locator("#source").fill(source.replace("$count = 0;", "$count = 7;"));
+  await page.locator("#run").click();
+
+  await expect(page.locator("#run-status")).toHaveText("Run 1 complete");
+  await expect(page.locator("#run-status")).toHaveAttribute("data-state", "success");
+  await expect(page.locator("#preview")).toHaveAttribute("data-run-state", "success");
+  await expect(page.locator("#count")).toHaveText("7");
 });
