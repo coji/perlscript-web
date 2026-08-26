@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>perlscript-web: hello</title>
+<style>body{font:18px system-ui;max-width:42rem;margin:4rem auto;padding:1rem}output{display:block;padding:1rem;background:#f4f4f5;border-radius:.75rem}</style>
+<output id="hello"></output>
+<script src="../dist/perlscript-web.js"></script>
+<script type="text/perl">
+open HELLO, ">dom:#hello";
+select HELLO;
+print "Hello from Perl 1.0-shaped code in the browser.";
+</script>
+</html>

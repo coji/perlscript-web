@@ -1,0 +1,17 @@
+import { Runtime } from "./runtime.js";
+/** @param {((error:Error)=>void)|null} handler */
+export declare function setErrorHandler(handler: ((error: Error) => void) | null): void;
+/** @returns {boolean} */
+export declare function hasErrorHandler(): boolean;
+/** @param {string} source @param {{document?:Document, io?:import('./io.js').MemoryIO, onError?:((error:Error)=>void)|null}} [options] */
+export declare function run(source: string, options?: {
+    document?: Document;
+    io?: import('./io.js').MemoryIO;
+    onError?: ((error: Error) => void) | null;
+}): Runtime;
+/** @param {Document} [root] @param {{onError?:((error:Error)=>void)|null}} [options] */
+export declare function runScripts(root?: Document, options?: {
+    onError?: ((error: Error) => void) | null;
+}): Promise<Runtime[]>;
+/** @param {HTMLScriptElement} script */
+export declare function disposeScript(script: HTMLScriptElement): void;
