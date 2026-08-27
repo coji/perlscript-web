@@ -15,6 +15,9 @@ test("the mixi archive keeps navigation, diaries, footprints, communities, and c
   assert.match(source, /storage:local:perlscript-web\/mixi\/footprints-v1/);
   assert.match(source, /storage:local:perlscript-web\/mixi\/communities-v1/);
   assert.match(source, /open STYLE, ">css:mixi-2005"/);
+  assert.match(source, /--mixi-orange:#f69223/);
+  assert.match(source, /width:720px/);
+  assert.doesNotMatch(html, /fonts\.googleapis\.com/);
 
   const root = new FakeElement();
   const stored = new Map();
@@ -49,6 +52,24 @@ test("the mixi archive keeps navigation, diaries, footprints, communities, and c
   assert.match(root.textContent, /naoya/);
   assert.match(root.textContent, /lestrrat/);
 
+  const routeCases = [
+    ["/login.pl", ["community entertainment", "次回から自動的にログイン"]],
+    ["/show_friend.pl?id=7", ["miyagawaのプロフィール", "miyagawaさんの最新の日記", "フィードを一か所に集めたい"]],
+    ["/list_diary.pl?id=6", ["Dan Kogaiさんの日記", "use Encode;"]],
+    ["/view_diary.pl?id=106&owner_id=6", ["use Encode;", "コメントを書く"]],
+    ["/add_diary.pl", ["日記を書く", "日記を公開する"]],
+    ["/show_log.pl", ["最近の足あと", "ページ全体のアクセス数"]],
+    ["/list_community.pl", ["参加コミュニティ一覧", "Perl Mongers Japan"]],
+    ["/view_community.pl?id=10", ["Perl Mongers Japan", "最新のトピック"]],
+    ["/list_message.pl", ["受信メッセージ", "デモ見ました"]],
+  ];
+  for (const [nextRoute, expected] of routeCases) {
+    runtime.scalars.route = nextRoute;
+    runtime.markDirty();
+    assert.doesNotThrow(() => runtime.flushUI(), nextRoute);
+    for (const text of expected) assert.match(root.textContent, new RegExp(text));
+  }
+
   const createDiary = (title, body) => {
     runtime.scalars.route = "/add_diary.pl";
     runtime.scalars.diary_title = title;
@@ -64,6 +85,19 @@ test("the mixi archive keeps navigation, diaries, footprints, communities, and c
   assert.deepEqual(diaries.slice(0, 2).map(diary => diary.id), [111, 110]);
   assert.equal(diaries[0].title, "同じ分に書いた二件目");
   assert.equal(diaries[0].owner, "1");
+
+  runtime.scalars.route = "/view_diary.pl?id=110&owner_id=1";
+  runtime.scalars.comment_body = "当時の画面にかなり近づいた。";
+  runtime.call("add_comment", []);
+  const commentedDiaries = JSON.parse(stored.get("perlscript-web/mixi/diaries-v2"));
+  assert.equal(commentedDiaries.find(diary => diary.id === 110).comments.at(-1).body, "当時の画面にかなり近づいた。");
+
+  runtime.scalars.route = "/view_community.pl?id=10";
+  runtime.scalars.topic_body = "昔のYAPCの話をしましょう。";
+  runtime.call("add_topic_reply", []);
+  const communities = JSON.parse(stored.get("perlscript-web/mixi/communities-v1"));
+  assert.equal(communities[0].topics[0].body, "昔のYAPCの話をしましょう。");
+
   runtime.scalars.route = "/home.pl";
   runtime.markDirty();
   assert.doesNotThrow(() => runtime.flushUI());
