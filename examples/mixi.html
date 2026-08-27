@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>mixi 2005 — PerlUI archive demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700&family=IBM+Plex+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../tokens.css">
+<style>
+/* Hallmark · genre: playful · macrostructure: Ecosystem Index · theme: custom 2004-mixi archive
+ * audience: Japanese web engineers · use: tour a Perl-owned social network · tone: plain, closed, nostalgic
+ * theme axes: light / grotesk-sans / warm · enrichment: none · nav: N3 side-rail · footer: Ft4 dense typographic
+ * contrast: pass (40–41) · slop: pass (42–45) · honest: pass (46) · chrome: pass (47) · tokens: pass (48)
+ * responsive: pass (34, 49–57) · icons: pass (30)
+ */
+/* Hallmark · pre-emit critique: P5 H5 E4 S5 R5 V5 */
+[hidden]{display:none!important}*{box-sizing:border-box}html,body{margin:0;overflow-x:clip}body{min-height:100dvh;background:var(--color-paper);color:var(--color-ink);font:var(--text-base)/1.55 var(--font-body)}.boot{padding:var(--space-xl);text-align:center}.source-toggle{position:fixed;z-index:200;inset-block-end:max(var(--space-sm),env(safe-area-inset-bottom));inset-inline-end:max(var(--space-sm),env(safe-area-inset-right));min-width:44px;min-height:44px;border:var(--rule-thin) solid var(--color-rule-strong);background:var(--color-paper-2);color:var(--color-ink);padding:var(--space-xs) var(--space-sm);font:700 var(--text-sm)/1 var(--font-body);white-space:nowrap;cursor:pointer}.source-dialog{position:fixed;inset:0;margin:0 0 0 auto;width:min(46rem,100%);height:100dvh;max-height:none;border:0;border-inline-start:var(--rule-thin) solid var(--color-code-rule);background:var(--color-graphite);color:var(--color-code);padding:0}.source-dialog::backdrop{background:var(--color-overlay)}.source-head{position:sticky;inset-block-start:0;display:flex;align-items:center;justify-content:space-between;gap:var(--space-md);background:var(--color-ink-2);padding:var(--space-sm) var(--space-md)}.source-head strong{font:700 var(--text-sm)/1.4 var(--font-mono)}.source-actions{display:flex;gap:var(--space-xs)}.source-actions button{min-height:44px;border:var(--rule-thin) solid var(--color-code-rule);background:var(--color-graphite);color:var(--color-code);padding:var(--space-xs) var(--space-sm);font-weight:700;white-space:nowrap;cursor:pointer}.source-actions .run{background:var(--color-accent);color:var(--color-accent-ink);border-color:var(--color-accent)}.source-status{padding:var(--space-xs) var(--space-md);color:var(--color-success);font:var(--text-xs)/1.4 var(--font-mono)}.source-error{margin:0 var(--space-md) var(--space-sm);border:var(--rule-thin) solid var(--color-error);padding:var(--space-sm);white-space:pre-wrap;color:var(--color-code);font:var(--text-xs)/1.45 var(--font-mono)}.source-editor{display:block;width:calc(100% - 2rem);min-height:calc(100dvh - 8rem);margin:0 var(--space-md) var(--space-md);resize:vertical;border:var(--rule-thin) solid var(--color-code-rule);outline:2px solid transparent;outline-offset:1px;background:var(--color-graphite);color:var(--color-code);padding:var(--space-md);font:var(--text-sm)/1.6 var(--font-mono);tab-size:4}.source-toggle:focus-visible,.source-actions button:focus-visible,.source-editor:focus-visible{outline:3px solid var(--color-focus);outline-offset:2px}@media(hover:hover) and (pointer:fine){.source-toggle:hover,.source-actions button:hover{background:var(--color-paper-3);color:var(--color-ink)}}.source-toggle:active,.source-actions button:active{transform:translateY(1px)}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:150ms!important;transition-duration:150ms!important}}
+</style>
+<body>
+<div id="app-root"><p class="boot">mixi.pl is starting…</p></div>
+<button class="source-toggle" id="open-source" type="button">Perlソース</button>
+<dialog class="source-dialog" id="source-dialog" aria-labelledby="source-title">
+  <div class="source-head"><strong id="source-title">mixi.pl — UI / route / storage / clock</strong><div class="source-actions"><button id="close-source" type="button">閉じる</button><button class="run" id="run" type="button">Run Perl</button></div></div>
+  <div class="source-status" id="run-status" role="status" aria-live="polite">Run 1 complete</div>
+  <pre class="source-error" id="error" role="alert" hidden></pre>
+  <textarea class="source-editor" id="source" aria-label="Perl source" spellcheck="false"></textarea>
+</dialog>
+<script src="../dist/perlscript-web.js"></script>
+<script id="app" type="text/plain" data-perlscript>
+$route = "/home.pl";
+$now = 0;
+$diary_title = "";
+$diary_body = "";
+$comment_body = "";
+$topic_body = "";
+$current_user = "1";
+$view_user = "1";
+$current_diary = "";
+$current_community = "";
+$login_email = "perl@example.jp";
+$login_password = "1987";
+$next_diary_id = 1;
+@users = ();
+@diaries = ();
+@footprints = ();
+@communities = ();
+@messages = ();
+
+sub seed_data {
+    %user1 = ("id", "1", "name", "Perl使い", "place", "東京都", "intro", "CGIと掲示板を作っています。最近はブラウザをfilehandleとして眺めています。", "last", "5分以内", "real", "0");
+    %user2 = ("id", "2", "name", "シフトさん", "place", "神奈川県", "intro", "Web制作会社で働いています。日記はだいたい深夜に更新します。", "last", "10分以内", "real", "0");
+    %user3 = ("id", "3", "name", "nobodyさん", "place", "大阪府", "intro", "Perl、正規表現、UNIX。質問には分かる範囲で答えます。", "last", "1時間以内", "real", "0");
+    %user4 = ("id", "4", "name", "鯖缶", "place", "埼玉県", "intro", "自宅サーバを止めないことが目標です。", "last", "3時間以内", "real", "0");
+    %user5 = ("id", "5", "name", "Web日記", "place", "京都府", "intro", "HTMLとCSS、たまにFlash。", "last", "1日以内", "real", "0");
+    %user6 = ("id", "6", "name", "Dan Kogai", "place", "東京都", "intro", "Jcode.pmの作者。オープンソースと本とWebについて。", "last", "30分以内", "real", "1");
+    %user7 = ("id", "7", "name", "miyagawa", "place", "東京都", "intro", "Perlとフィードとブログをつなぐソフトウェアエンジニア。", "last", "15分以内", "real", "1");
+    %user8 = ("id", "8", "name", "naoya", "place", "京都府", "intro", "Webサービスの裏側を作っています。", "last", "40分以内", "real", "1");
+    %user9 = ("id", "9", "name", "lestrrat", "place", "東京都", "intro", "PerlとCでWebアプリや検索エンジンを作っています。", "last", "20分以内", "real", "1");
+    @users = (%user1, %user2, %user3, %user4, %user5, %user6, %user7, %user8, %user9);
+
+    %comment1 = ("user", "3", "date", "2005年08月27日 22:18", "body", "イベントをfilehandleで受けるの、CGIっぽくていいですね。");
+    @comments1 = (%comment1);
+    %diary1 = ("id", "101", "owner", "2", "date", "2005年08月27日 21:42", "title", "ブラウザでPerlが動いた", "body", "HTMLの中にPerlを書いてみた。クリックすると変数が変わって、画面も更新される。DOMを直接触っていないのが不思議。", "comments", @comments1);
+    @comments2 = ();
+    %diary2 = ("id", "102", "owner", "3", "date", "2005年08月27日 19:08", "title", "正規表現でルーティング", "body", "PATH_INFOの代わりにlocation.hashを読む。昔のCGIと同じ考え方で画面を切り替えられた。", "comments", @comments2);
+    @comments3 = ();
+    %diary3 = ("id", "103", "owner", "4", "date", "2005年08月26日 23:51", "title", "サーバを再起動した", "body", "uptimeは惜しかったけれど、カーネル更新のため再起動。次は200日を目指す。", "comments", @comments3);
+    @comments4 = ();
+    %diary4 = ("id", "104", "owner", "5", "date", "2005年08月26日 18:20", "title", "角丸の作り方", "body", "画像を四隅に置かなくても角丸にできる日が来るらしい。本当だろうか。", "comments", @comments4);
+    @comments5 = ();
+    %diary5 = ("id", "105", "owner", "1", "date", "2005年08月25日 12:03", "title", "Perl 1.0を読んでいる", "body", "1987年のソースを読んでいる。小さいが、もうPerlらしさが全部入っている。", "comments", @comments5);
+    @comments6 = ();
+    %diary6 = ("id", "106", "owner", "6", "date", "2005年08月25日 00:44", "title", "use Encode;", "body", "文字コードの境界は、決めた場所で明示的に扱うのがいい。ブラウザの向こう側も同じだろうか。\n\n※この投稿はデモ用の架空テキストです。", "comments", @comments6);
+    @comments7 = ();
+    %diary7 = ("id", "107", "owner", "7", "date", "2005年08月24日 23:15", "title", "フィードを一か所に集めたい", "body", "ブログやニュースの更新をまとめて、自分の好きな形に変換できたら便利そう。\n\n※この投稿はデモ用の架空テキストです。", "comments", @comments7);
+    @comments8 = ();
+    %diary8 = ("id", "108", "owner", "8", "date", "2005年08月24日 19:30", "title", "ブックマークの向こう側", "body", "同じページを読んだ人のコメントが並ぶと、URLが会話の場所になる。\n\n※この投稿はデモ用の架空テキストです。", "comments", @comments8);
+    @comments9 = ();
+    %diary9 = ("id", "109", "owner", "9", "date", "2005年08月24日 02:11", "title", "XSの浅瀬に足を入れる", "body", "PerlからCを呼べると、重い処理だけ別の速度で走らせられる。境界を越えるところがいちばん面白い。\n\n※この投稿はデモ用の架空テキストです。", "comments", @comments9);
+    @diaries = (%diary1, %diary2, %diary3, %diary4, %diary5, %diary6, %diary7, %diary8, %diary9);
+
+    %foot1 = ("owner", "1", "user", "2", "date", "2005年08月27日 22:44");
+    %foot2 = ("owner", "1", "user", "3", "date", "2005年08月27日 21:03");
+    %foot3 = ("owner", "1", "user", "5", "date", "2005年08月27日 18:32");
+    @footprints = (%foot1, %foot2, %foot3);
+
+    %topic1 = ("id", "201", "title", "ブラウザでPerlを動かす会", "author", "2", "date", "2005年08月27日", "body", "PerlUIを試した人の報告スレです。");
+    %topic2 = ("id", "202", "title", "YAPCに行く人", "author", "3", "date", "2005年08月26日", "body", "発表と懇親会の情報交換をしましょう。");
+    @topics1 = (%topic1, %topic2);
+    %community1 = ("id", "10", "name", "Perl Mongers Japan", "mark", "PM", "members", "1287", "intro", "Perlを使う人、使っていた人、これから使う人のコミュニティです。", "topics", @topics1);
+    %topic3 = ("id", "203", "title", "CSSだけでどこまでできる？", "author", "5", "date", "2005年08月27日", "body", "画像を減らしたページ作りについて話しましょう。");
+    @topics2 = (%topic3);
+    %community2 = ("id", "11", "name", "Web制作の現場", "mark", "HTML", "members", "842", "intro", "HTML、CSS、画像素材、納期の話。", "topics", @topics2);
+    @communities = (%community1, %community2);
+
+    %message1 = ("from", "2", "date", "2005年08月27日 20:15", "subject", "デモ見ました", "body", "Perlだけで画面が動くの、おもしろいですね。");
+    %message2 = ("from", "4", "date", "2005年08月26日 23:58", "subject", "サーバの件", "body", "ログの保存方法、あとで教えてください。");
+    @messages = (%message1, %message2);
+}
+
+sub save_diaries { open DIARY_OUT, ">storage:local:perlscript-web/mixi/diaries-v2"; print DIARY_OUT encode_json(@diaries); }
+sub save_footprints { open FOOT_OUT, ">storage:local:perlscript-web/mixi/footprints-v1"; print FOOT_OUT encode_json(@footprints); }
+sub save_communities { open COMM_OUT, ">storage:local:perlscript-web/mixi/communities-v1"; print COMM_OUT encode_json(@communities); }
+
+sub refresh_next_diary_id {
+    $next_diary_id = 1;
+    $id_i = 0;
+    while ($id_i <= $#diaries) {
+        %id_diary = $diaries[$id_i];
+        if ($id_diary{id} >= $next_diary_id) { $next_diary_id = $id_diary{id} + 1; }
+        $id_i++;
+    }
+}
+
+sub load_data {
+    $stored_diaries = <DIARY_IN>;
+    $stored_footprints = <FOOT_IN>;
+    $stored_communities = <COMM_IN>;
+    seed_data();
+    if ($stored_diaries ne "") { @diaries = decode_json($stored_diaries); }
+    else { save_diaries(); }
+    if ($stored_footprints ne "") { @footprints = decode_json($stored_footprints); }
+    else { save_footprints(); }
+    if ($stored_communities ne "") { @communities = decode_json($stored_communities); }
+    else { save_communities(); }
+    refresh_next_diary_id();
+}
+
+sub find_user {
+    $wanted_user = $_[0];
+    %found_user = ();
+    $user_i = 0;
+    while ($user_i <= $#users) { %candidate_user = $users[$user_i]; if ($candidate_user{id} eq $wanted_user) { %found_user = %candidate_user; } $user_i++; }
+    return %found_user;
+}
+
+sub user_link {
+    %linked_user = find_user($_[0]);
+    begin("a", "href", "#/show_friend.pl?id=" . $linked_user{id}); text($linked_user{name}); end();
+}
+
+sub avatar {
+    %avatar_user = find_user($_[0]);
+    begin("img", "class", "avatar " . $_[1], "src", "./assets/mixi/member-" . $avatar_user{id} . ".webp", "alt", $avatar_user{name} . "のプロフィール画像"); end();
+}
+
+sub login { print ROUTE "/home.pl"; }
+
+sub record_footprint {
+    return if $view_user eq $current_user;
+    %new_foot = ("owner", $view_user, "user", $current_user, "date", "UNIX $now");
+    push(@footprints, %new_foot);
+    save_footprints();
+}
+
+sub visit {
+    $route = <ROUTE>;
+    if ($route =~ /^\/show_friend\.pl\?id=([0-9]+)$/) { $view_user = $1; record_footprint(); }
+}
+
+sub tick { $now = <CLOCK>; }
+
+sub create_diary {
+    return if $diary_title eq "";
+    return if $diary_body eq "";
+    $new_diary_id = $next_diary_id;
+    $next_diary_id++;
+    @new_comments = ();
+    %new_diary = ("id", $new_diary_id, "owner", $current_user, "date", "UNIX $now", "title", $diary_title, "body", $diary_body, "comments", @new_comments);
+    @next_diaries = ();
+    push(@next_diaries, %new_diary);
+    $next_diary_i = 0;
+    while ($next_diary_i <= $#diaries) { push(@next_diaries, $diaries[$next_diary_i]); $next_diary_i++; }
+    @diaries = @next_diaries;
+    save_diaries();
+    $diary_title = "";
+    $diary_body = "";
+    print ROUTE "/view_diary.pl?id=$new_diary_id&owner_id=$current_user";
+}
+
+sub add_comment {
+    return if $comment_body eq "";
+    $current_diary = "";
+    if ($route =~ /^\/view_diary\.pl\?id=([0-9]+)&owner_id=[0-9]+$/) { $current_diary = $1; }
+    $comment_i = 0;
+    while ($comment_i <= $#diaries) {
+        %comment_diary = $diaries[$comment_i];
+        if ($comment_diary{id} eq $current_diary) {
+            @diary_comments = $comment_diary{comments};
+            %new_comment = ("user", $current_user, "date", "UNIX $now", "body", $comment_body);
+            push(@diary_comments, %new_comment);
+            $comment_diary{comments} = @diary_comments;
+            $diaries[$comment_i] = %comment_diary;
+        }
+        $comment_i++;
+    }
+    save_diaries();
+    $comment_body = "";
+}
+
+sub add_topic_reply {
+    return if $topic_body eq "";
+    $current_community = "";
+    if ($route =~ /^\/view_community\.pl\?id=([0-9]+)$/) { $current_community = $1; }
+    $comm_i = 0;
+    while ($comm_i <= $#communities) {
+        %reply_comm = $communities[$comm_i];
+        if ($reply_comm{id} eq $current_community) {
+            @reply_topics = $reply_comm{topics};
+            %new_topic = ("id", $now, "title", "Re: コミュニティの話題", "author", $current_user, "date", "UNIX $now", "body", $topic_body);
+            @next_topics = ();
+            push(@next_topics, %new_topic);
+            $next_topic_i = 0;
+            while ($next_topic_i <= $#reply_topics) { push(@next_topics, $reply_topics[$next_topic_i]); $next_topic_i++; }
+            @reply_topics = @next_topics;
+            $reply_comm{topics} = @reply_topics;
+            $communities[$comm_i] = %reply_comm;
+        }
+        $comm_i++;
+    }
+    save_communities();
+    $topic_body = "";
+}
+
+sub reset_demo {
+    seed_data(); refresh_next_diary_id(); save_diaries(); save_footprints(); save_communities();
+    $diary_title = ""; $diary_body = ""; $comment_body = ""; $topic_body = "";
+    print ROUTE "/home.pl";
+}
+
+sub site_header {
+    begin("header", "class", "mixi-header");
+    begin("div", "class", "brand-row");
+    begin("a", "class", "mixi-logo", "href", "#/home.pl", "aria-label", "mixi ホーム"); text("mixi"); begin("small"); text("β version"); end(); end();
+    begin("p"); text("ソーシャル・ネットワーキング サービス"); end();
+    end();
+    begin("nav", "class", "global-nav", "aria-label", "メインメニュー");
+    begin("a", "href", "#/home.pl"); text("ホーム"); end();
+    begin("a", "href", "#/list_message.pl"); text("メッセージ"); end();
+    begin("a", "href", "#/list_diary.pl?id=1"); text("日記"); end();
+    begin("a", "href", "#/list_community.pl"); text("コミュニティ"); end();
+    begin("a", "href", "#/show_log.pl"); text("足あと"); end();
+    begin("a", "href", "#/show_friend.pl?id=1"); text("プロフィール"); end();
+    end();
+    end();
+}
+
+sub left_rail {
+    %me = find_user($current_user);
+    begin("aside", "class", "left-rail");
+    begin("section", "class", "rail-box profile-mini");
+    avatar($current_user, "avatar-large");
+    begin("strong"); text($me{name}); end();
+    begin("a", "href", "#/show_friend.pl?id=1"); text("プロフィール確認"); end();
+    end();
+    begin("section", "class", "rail-box"); begin("h2"); text("マイミクシィ一覧"); end();
+    begin("div", "class", "friend-grid");
+    $friend_i = 1;
+    while ($friend_i <= $#users) { %friend = $users[$friend_i]; begin("a", "href", "#/show_friend.pl?id=" . $friend{id}); avatar($friend{id}, "avatar-small"); begin("span"); text($friend{name}); end(); end(); $friend_i++; }
+    end();
+    end();
+    end();
+}
+
+sub right_rail {
+    begin("aside", "class", "right-rail");
+    begin("section", "class", "notice-box"); begin("h2"); text("08/27(土)"); end();
+    begin("a", "href", "#/list_message.pl"); text("新着メッセージ 2件"); end();
+    begin("a", "href", "#/show_log.pl"); text("新しい足あと"); end();
+    begin("a", "href", "#/list_community.pl"); text("コミュニティ更新"); end();
+    end();
+    begin("section", "class", "notice-box archive-note"); begin("h2"); text("このデモについて"); end(); begin("p"); text("2004年の画面構造を参考にした架空データのデモです。"); end(); end();
+    end();
+}
+
+sub shell_start {
+    site_header();
+    begin("main", "class", "mixi-layout");
+    left_rail();
+    begin("section", "class", "main-column");
+}
+
+sub shell_end {
+    end();
+    right_rail();
+    end();
+}
+
+sub panel_title { begin("h1", "class", "panel-title"); text($_[0]); end(); }
+
+sub diary_row {
+    %row_diary = $_[0];
+    %row_owner = find_user($row_diary{owner});
+    begin("article", "class", "update-row"); key($row_diary{id});
+    begin("div", "class", "date-cell"); text($row_diary{date}); end();
+    begin("div", "class", "update-body");
+    begin("a", "class", "entry-link", "href", "#/view_diary.pl?id=" . $row_diary{id} . "&owner_id=" . $row_diary{owner}); text($row_diary{title}); end();
+    begin("span"); text("（" . $row_owner{name} . "）"); end();
+    end(); end();
+}
+
+sub login_view {
+    begin("main", "class", "login-page");
+    begin("header", "class", "login-header");
+    begin("div", "class", "login-logo"); text("mixi"); begin("small"); text("β version"); end(); end();
+    begin("p"); text("ソーシャル・ネットワーキング サービス"); end();
+    end();
+    begin("nav", "class", "login-nav", "aria-label", "ログイン前メニュー");
+    begin("a", "href", "#/login.pl"); text("ホーム"); end();
+    begin("a", "href", "#/login.pl"); text("mixiについて"); end();
+    begin("a", "href", "#/login.pl"); text("新規登録について"); end();
+    begin("a", "href", "#/login.pl"); text("ヘルプ"); end();
+    end();
+    begin("section", "class", "meadow-login", "aria-label", "青空と草原のログイン画面");
+    begin("div", "class", "meadow-copy"); begin("span"); text("community entertainment"); end(); begin("strong"); text("mixi"); end(); end();
+    begin("form", "class", "login-form"); on("submit", "login");
+    begin("label"); begin("span"); text("e-mail"); end(); begin("input", "type", "email", "autocomplete", "email"); bind("value", "login_email"); end(); end();
+    begin("label"); begin("span"); text("password"); end(); begin("input", "type", "password", "autocomplete", "current-password"); bind("value", "login_password"); end(); end();
+    begin("label", "class", "remember-login"); begin("input", "type", "checkbox"); end(); begin("span"); text("次回から自動的にログイン"); end(); end();
+    begin("button", "type", "submit"); text("ログイン"); end();
+    begin("a", "href", "#/login.pl"); text("パスワードを忘れた方はこちら"); end();
+    end();
+    end();
+    begin("p", "class", "reenactment-wide"); text("草原と人物写真は、当時の公開画面を資料として生成したオリジナルのAI再現です。"); end();
+    end();
+}
+
+sub home_view {
+    shell_start();
+    begin("section", "class", "announcement"); begin("strong"); text("運営者からのお知らせ"); end(); begin("a", "href", "#/home.pl"); text("招待制SNSをPerlUIで再現しています"); end(); end();
+    panel_title("最新情報");
+    begin("section", "class", "feed-section"); begin("h2"); text("マイミクシィ最新日記"); end();
+    $home_i = 0;
+    while ($home_i <= $#diaries) { diary_row($diaries[$home_i]); $home_i++; }
+    begin("p", "class", "more-link"); begin("a", "href", "#/list_diary.pl?id=1"); text("日記をもっと読む"); end(); end();
+    end();
+    begin("section", "class", "feed-section"); begin("h2"); text("コミュニティ最新書き込み"); end();
+    $home_comm_i = 0;
+    while ($home_comm_i <= $#communities) { %home_comm = $communities[$home_comm_i]; @home_topics = $home_comm{topics}; %home_topic = $home_topics[0]; begin("div", "class", "update-row"); begin("div", "class", "date-cell"); text($home_topic{date}); end(); begin("div", "class", "update-body"); begin("a", "href", "#/view_community.pl?id=" . $home_comm{id}); text($home_topic{title}); end(); text("（" . $home_comm{name} . "）"); end(); end(); $home_comm_i++; }
+    end();
+    shell_end();
+}
+
+sub profile_view {
+    if ($route =~ /^\/show_friend\.pl\?id=([0-9]+)$/) { $view_user = $1; }
+    %profile = find_user($view_user);
+    shell_start();
+    panel_title($profile{name} . "のプロフィール");
+    begin("section", "class", "profile-main");
+    avatar($profile{id}, "avatar-xlarge");
+    begin("dl", "class", "profile-data");
+    begin("dt"); text("名前"); end(); begin("dd"); text($profile{name}); end();
+    begin("dt"); text("現住所"); end(); begin("dd"); text($profile{place}); end();
+    begin("dt"); text("最終ログイン"); end(); begin("dd"); text($profile{last}); end();
+    begin("dt"); text("自己紹介"); end(); begin("dd"); text($profile{intro}); end();
+    end();
+    if ($profile{real} eq "1") { begin("p", "class", "reenactment-note"); text("実在人物。写真は公開プロフィールを参考にしたAIによる2005年当時の再現です。日記本文はこのデモ用の架空テキストです。"); end(); }
+    end();
+    begin("p", "class", "profile-actions"); begin("a", "href", "#/list_diary.pl?id=" . $profile{id}); text($profile{name} . "さんの日記"); end(); text(" ｜ "); begin("a", "href", "#/list_message.pl"); text("メッセージを送る"); end(); end();
+    shell_end();
+}
+
+sub diary_list_view {
+    $diary_owner = "1";
+    if ($route =~ /^\/list_diary\.pl\?id=([0-9]+)$/) { $diary_owner = $1; }
+    %owner_user = find_user($diary_owner);
+    shell_start();
+    panel_title($owner_user{name} . "さんの日記");
+    if ($diary_owner eq $current_user) { begin("p", "class", "action-line"); begin("a", "class", "old-button", "href", "#/add_diary.pl"); text("日記を書く"); end(); end(); }
+    begin("section", "class", "diary-list");
+    $list_i = 0;
+    $diary_count = 0;
+    while ($list_i <= $#diaries) { %listed_diary = $diaries[$list_i]; if ($listed_diary{owner} eq $diary_owner) { diary_row(%listed_diary); $diary_count++; } $list_i++; }
+    if ($diary_count eq 0) { begin("p", "class", "empty-state"); text("まだ日記がありません。"); end(); }
+    end();
+    shell_end();
+}
+
+sub add_diary_view {
+    shell_start(); panel_title("日記を書く");
+    begin("form", "class", "old-form"); on("submit", "create_diary");
+    begin("label"); begin("span"); text("タイトル"); end(); begin("input", "id", "diary-title", "aria-required", "true", "aria-describedby", "diary-help"); bind("value", "diary_title"); end(); end();
+    begin("label"); begin("span"); text("本文"); end(); begin("textarea", "id", "diary-body", "rows", "10", "aria-required", "true", "aria-describedby", "diary-help"); bind("value", "diary_body"); end(); end();
+    begin("p", "id", "diary-help", "class", "form-help"); text("タイトルと本文を入力してください。公開範囲はマイミクシィまでです。"); end();
+    begin("button", "type", "submit"); text("日記を公開する"); end();
+    end(); shell_end();
+}
+
+sub diary_view {
+    $current_diary = "";
+    if ($route =~ /^\/view_diary\.pl\?id=([0-9]+)&owner_id=([0-9]+)$/) { $current_diary = $1; $diary_owner = $2; }
+    shell_start();
+    $view_diary_i = 0;
+    while ($view_diary_i <= $#diaries) {
+        %viewed_diary = $diaries[$view_diary_i];
+        if ($viewed_diary{id} eq $current_diary) {
+            %viewed_owner = find_user($viewed_diary{owner});
+            panel_title($viewed_diary{title});
+            begin("article", "class", "diary-entry"); begin("p", "class", "entry-meta"); text($viewed_diary{date} . "　"); user_link($viewed_diary{owner}); end(); begin("p", "class", "entry-body"); text($viewed_diary{body}); end(); end();
+            begin("section", "class", "comments"); begin("h2"); text("コメント"); end();
+            @view_comments = $viewed_diary{comments};
+            $view_comment_i = 0;
+            while ($view_comment_i <= $#view_comments) { %view_comment = $view_comments[$view_comment_i]; begin("article", "class", "comment-row"); avatar($view_comment{user}, "avatar-small"); begin("div"); begin("p", "class", "comment-meta"); user_link($view_comment{user}); text("　" . $view_comment{date}); end(); begin("p"); text($view_comment{body}); end(); end(); end(); $view_comment_i++; }
+            begin("form", "class", "old-form compact-form"); on("submit", "add_comment"); begin("label"); begin("span"); text("コメントを書く"); end(); begin("textarea", "id", "comment-body", "rows", "4", "aria-required", "true", "aria-describedby", "comment-help"); bind("value", "comment_body"); end(); end(); begin("p", "id", "comment-help", "class", "form-help"); text("日記の作者とマイミクシィに公開されます。"); end(); begin("button", "type", "submit"); text("コメントする"); end(); end();
+            end();
+        }
+        $view_diary_i++;
+    }
+    shell_end();
+}
+
+sub footprints_view {
+    shell_start(); panel_title("最近の足あと");
+    begin("p", "class", "explanation"); text("あなたのページ全体のアクセス数と、最近の訪問ユーザーを表示しています。このデモではプロフィールを巡回すると足あとが残ります。"); end();
+    $own_foot_count = 0;
+    $own_count_i = 0;
+    while ($own_count_i <= $#footprints) { %counted_foot = $footprints[$own_count_i]; if ($counted_foot{owner} eq $current_user) { $own_foot_count++; } $own_count_i++; }
+    begin("p", "class", "access-count"); text("ページ全体のアクセス数：" . (3505 + $own_foot_count) . " アクセス"); end();
+    begin("section", "class", "footprint-list");
+    $foot_i = $#footprints;
+    while ($foot_i >= 0) { %foot = $footprints[$foot_i]; if ($foot{owner} eq $current_user) { begin("div", "class", "footprint-row"); begin("span"); text($foot{date}); end(); user_link($foot{user}); end(); } $foot_i--; }
+    end(); shell_end();
+}
+
+sub communities_view {
+    shell_start(); panel_title("参加コミュニティ一覧");
+    begin("section", "class", "community-grid");
+    $community_i = 0;
+    while ($community_i <= $#communities) { %community = $communities[$community_i]; begin("article", "class", "community-card"); begin("div", "class", "community-mark"); text($community{mark}); end(); begin("div"); begin("h2"); begin("a", "href", "#/view_community.pl?id=" . $community{id}); text($community{name}); end(); end(); begin("p"); text($community{intro}); end(); begin("small"); text("メンバー " . $community{members} . "人"); end(); end(); end(); $community_i++; }
+    end(); shell_end();
+}
+
+sub community_view {
+    $current_community = "";
+    if ($route =~ /^\/view_community\.pl\?id=([0-9]+)$/) { $current_community = $1; }
+    shell_start();
+    $community_view_i = 0;
+    while ($community_view_i <= $#communities) { %viewed_comm = $communities[$community_view_i]; if ($viewed_comm{id} eq $current_community) { panel_title($viewed_comm{name}); begin("section", "class", "community-head"); begin("div", "class", "community-mark large-mark", "aria-label", $viewed_comm{name} . "の画像"); text($viewed_comm{mark}); end(); begin("div"); begin("p"); text($viewed_comm{intro}); end(); begin("strong"); text("参加者 " . $viewed_comm{members} . "人"); end(); end(); end(); begin("section", "class", "topic-list"); begin("h2"); text("最新のトピック"); end(); @view_topics = $viewed_comm{topics}; $topic_i = 0; while ($topic_i <= $#view_topics) { %topic = $view_topics[$topic_i]; begin("article", "class", "topic-row"); begin("strong"); text($topic{title}); end(); begin("p"); text($topic{body}); end(); begin("small"); user_link($topic{author}); text("　" . $topic{date}); end(); end(); $topic_i++; } end(); begin("form", "class", "old-form compact-form"); on("submit", "add_topic_reply"); begin("label"); begin("span"); text("このコミュニティに書き込む"); end(); begin("textarea", "id", "topic-body", "rows", "4", "aria-required", "true", "aria-describedby", "topic-help"); bind("value", "topic_body"); end(); end(); begin("p", "id", "topic-help", "class", "form-help"); text("参加メンバー全員に公開されます。"); end(); begin("button", "type", "submit"); text("書き込む"); end(); end(); } $community_view_i++; }
+    shell_end();
+}
+
+sub messages_view {
+    shell_start(); panel_title("受信メッセージ");
+    begin("section", "class", "message-list");
+    $message_i = 0;
+    while ($message_i <= $#messages) { %message = $messages[$message_i]; begin("article", "class", "message-row"); avatar($message{from}, "avatar-small"); begin("div"); begin("h2"); text($message{subject}); end(); begin("p", "class", "comment-meta"); user_link($message{from}); text("　" . $message{date}); end(); begin("p"); text($message{body}); end(); end(); end(); $message_i++; }
+    end(); shell_end();
+}
+
+sub footer_view {
+    begin("footer", "class", "mixi-footer");
+    begin("p"); text("mixi archive-inspired demo · 2004 interface structure · generated images · all posts are fictional · UI, route, storage and clock are owned by Perl 1.0-shaped source · "); begin("button", "type", "button"); on("click", "reset_demo"); text("デモを初期化"); end(); end();
+    end();
+}
+
+sub view {
+    begin("div", "class", "mixi-page");
+    if ($route eq "/" || $route eq "/login.pl") { login_view(); }
+    if ($route eq "/home.pl") { home_view(); }
+    if ($route =~ /^\/show_friend\.pl\?id=[0-9]+$/) { profile_view(); }
+    if ($route =~ /^\/list_diary\.pl\?id=[0-9]+$/) { diary_list_view(); }
+    if ($route eq "/add_diary.pl") { add_diary_view(); }
+    if ($route =~ /^\/view_diary\.pl\?id=[0-9]+&owner_id=[0-9]+$/) { diary_view(); }
+    if ($route eq "/show_log.pl") { footprints_view(); }
+    if ($route eq "/list_community.pl") { communities_view(); }
+    if ($route =~ /^\/view_community\.pl\?id=[0-9]+$/) { community_view(); }
+    if ($route eq "/list_message.pl") { messages_view(); }
+    if ($route ne "/" && $route ne "/login.pl") { footer_view(); }
+    end();
+}
+
+open STYLE, ">css:mixi-2005";
+print STYLE '
+.mixi-page{min-height:100dvh;background:var(--color-paper-2);color:var(--color-ink);padding-block:var(--space-xs) var(--space-2xl);font-family:var(--font-body);font-size:var(--text-base)}
+.mixi-page a{color:var(--color-link);text-decoration:underline}.mixi-page a:visited{color:var(--color-link)}.mixi-page a:focus-visible,.mixi-page button:focus-visible,.mixi-page input:focus-visible,.mixi-page textarea:focus-visible{outline:3px solid var(--color-focus);outline-offset:2px}.mixi-page a,.mixi-page button{white-space:nowrap}.mixi-header{width:min(100% - 1rem,62rem);margin-inline:auto;border:var(--rule-thin) solid var(--color-rule-strong);background:var(--color-paper)}.brand-row{display:flex;align-items:end;justify-content:space-between;gap:var(--space-sm);padding:var(--space-xs) var(--space-md);background:var(--color-panel);color:var(--color-ink)}.brand-row p{margin:0;text-align:end;font-size:var(--text-sm)}.mixi-logo{display:flex;align-items:end;gap:var(--space-xs);color:var(--color-ink)!important;text-decoration:none!important;font:700 var(--text-2xl)/1 var(--font-display);letter-spacing:-.06em}.mixi-logo small{color:var(--color-accent);font:700 var(--text-xs)/1 var(--font-body);letter-spacing:0}.global-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-block-start:var(--rule-thin) solid var(--color-rule);background:var(--color-paper-3)}.global-nav a{display:flex;align-items:center;justify-content:center;min-height:44px;border-inline-end:var(--rule-thin) solid var(--color-rule);color:var(--color-accent-hover)!important;padding:var(--space-sm) var(--space-2xs);text-align:center;text-decoration:none;font-weight:700;font-size:var(--text-sm);line-height:1}.mixi-layout{display:grid;gap:var(--space-sm);width:min(100% - 1rem,62rem);margin:var(--space-xs) auto}.left-rail,.right-rail,.main-column{min-width:0}.rail-box,.notice-box,.feed-section,.diary-list,.profile-main,.diary-entry,.comments,.footprint-list,.community-grid,.message-list,.topic-list,.community-head{border:var(--rule-thin) solid var(--color-rule);background:var(--color-panel);padding:var(--space-xs)}.rail-box,.notice-box{margin-block-end:var(--space-xs)}.rail-box h2,.notice-box h2,.feed-section h2,.comments h2,.topic-list h2{margin:calc(-1 * var(--space-xs)) calc(-1 * var(--space-xs)) var(--space-xs);background:var(--color-paper-3);color:var(--color-ink-2);padding:var(--space-2xs) var(--space-xs);font-size:var(--text-base);line-height:1.3}.profile-mini{display:grid;justify-items:center;gap:var(--space-xs);text-align:center}.avatar{display:grid;place-items:center;flex:0 0 auto;border:var(--rule-thin) solid var(--color-rule-strong);background:var(--color-paper-3);color:var(--color-accent-hover);font:700 var(--text-md)/1 var(--font-display)}.avatar-small{width:44px;height:44px}.avatar-large{width:7rem;height:7rem;font-size:var(--text-2xl)}.avatar-xlarge{width:9rem;height:9rem;font-size:var(--text-3xl)}.friend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-xs)}.friend-grid>a{display:grid;justify-items:center;gap:var(--space-2xs);min-width:0;text-align:center;font-size:var(--text-sm)}.friend-grid span{max-width:100%;overflow:hidden;text-overflow:ellipsis}.notice-box{display:grid;gap:var(--space-2xs)}.archive-note p{margin:0;font-size:var(--text-sm)}.panel-title{min-width:0;margin:0 0 var(--space-xs);border:var(--rule-thin) solid var(--color-rule-strong);background:var(--color-paper-3);color:var(--color-ink-2);padding:var(--space-2xs) var(--space-xs);font:700 var(--text-md)/1.3 var(--font-body);overflow-wrap:anywhere}.announcement{display:grid;gap:var(--space-2xs);margin-block-end:var(--space-xs);border:var(--rule-thin) solid var(--color-rule);background:var(--color-paper);padding:var(--space-xs)}.feed-section{margin-block-end:var(--space-xs)}.update-row{display:grid;gap:var(--space-2xs);border-block-end:var(--rule-thin) dotted var(--color-rule);padding:var(--space-xs) var(--space-2xs)}.date-cell{color:var(--color-muted);font-size:var(--text-sm);font-variant-numeric:tabular-nums}.update-body{min-width:0}.entry-link{font-weight:700}.update-body span{color:var(--color-muted);font-size:var(--text-sm)}.more-link{text-align:end}.action-line{text-align:end}.old-button,.old-form button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;border:var(--rule-thin) solid var(--color-rule-strong);background:var(--color-paper-3);color:var(--color-ink)!important;padding:var(--space-xs) var(--space-sm);text-decoration:none!important;font-weight:700;cursor:pointer}.profile-main{display:grid;justify-items:center;gap:var(--space-md)}.profile-data{display:grid;grid-template-columns:6rem minmax(0,1fr);width:100%;margin:0}.profile-data dt,.profile-data dd{margin:0;border-block-end:var(--rule-thin) dotted var(--color-rule);padding:var(--space-xs)}.profile-data dt{background:var(--color-paper-2);font-weight:700}.profile-actions{text-align:center}.old-form{display:grid;gap:var(--space-sm);border:var(--rule-thin) solid var(--color-rule);background:var(--color-panel);padding:var(--space-md)}.old-form label{display:grid;gap:var(--space-2xs);font-weight:700}.old-form input,.old-form textarea{width:100%;border:var(--rule-thin) solid var(--color-rule-strong);outline:2px solid transparent;outline-offset:1px;background:var(--color-paper);color:var(--color-ink);padding:var(--space-xs);font:var(--text-base)/1.5 var(--font-body)}.old-form input{min-height:44px}.old-form textarea{min-height:6rem;resize:vertical}.form-help{min-height:1lh;margin:0;color:var(--color-muted);font-size:var(--text-sm)}.old-form button{justify-self:start}.diary-entry{padding:var(--space-md)}.entry-meta{margin-top:0;color:var(--color-muted);font-size:var(--text-sm)}.entry-body{white-space:pre-wrap;overflow-wrap:anywhere}.comments{margin-block-start:var(--space-xs)}.comment-row,.message-row{display:flex;gap:var(--space-sm);border-block-end:var(--rule-thin) dotted var(--color-rule);padding-block:var(--space-sm)}.comment-row p,.message-row p,.message-row h2{margin:0 0 var(--space-xs)}.comment-meta{color:var(--color-muted);font-size:var(--text-sm)}.compact-form{margin-block-start:var(--space-sm)}.explanation{border:var(--rule-thin) solid var(--color-rule);background:var(--color-paper-3);padding:var(--space-sm)}.access-count{text-align:center;font-weight:700;font-variant-numeric:tabular-nums}.footprint-row{display:grid;grid-template-columns:minmax(9rem,1fr) minmax(0,1fr);gap:var(--space-md);border-block-end:var(--rule-thin) dotted var(--color-rule);padding:var(--space-xs);font-variant-numeric:tabular-nums}.community-grid{display:grid;gap:var(--space-sm)}.community-card,.community-head{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--space-sm)}.community-card h2,.community-card p{margin:0 0 var(--space-xs)}.community-mark{display:grid;place-items:center;width:5rem;height:5rem;border:var(--rule-thin) solid var(--color-rule-strong);background:var(--color-paper-3);color:var(--color-accent-hover);font:700 var(--text-base)/1 var(--font-display)}.large-mark{width:7rem;height:7rem;font-size:var(--text-md)}.topic-list{margin-block-start:var(--space-xs)}.topic-row{border-block-end:var(--rule-thin) dotted var(--color-rule);padding:var(--space-sm)}.topic-row p{margin-block:var(--space-xs)}.mixi-footer{width:min(100% - 1rem,62rem);margin:var(--space-lg) auto 0;border-block-start:var(--rule-thin) solid var(--color-rule-strong);padding:var(--space-sm);color:var(--color-muted);font:var(--text-xs)/1.6 var(--font-body)}.mixi-footer button{min-height:44px;border:var(--rule-thin) solid var(--color-rule-strong);background:var(--color-paper);color:var(--color-ink);padding:var(--space-xs);font:700 var(--text-xs)/1 var(--font-body);cursor:pointer}
+.avatar{display:block;object-fit:cover;font-size:0}.reenactment-note{grid-column:1/-1;margin:0;border:var(--rule-thin) solid var(--color-rule);background:var(--color-paper-2);padding:var(--space-xs);color:var(--color-muted);font-size:var(--text-sm)}.login-page{width:min(100% - 1rem,62rem);margin-inline:auto;border:var(--rule-thin) solid var(--color-rule-strong);background:var(--color-panel)}.login-header{display:flex;align-items:end;justify-content:space-between;gap:var(--space-sm);padding:var(--space-xs) var(--space-md);border-block-start:.25rem solid var(--color-accent)}.login-header p{margin:0;text-align:end;font-size:var(--text-sm)}.login-logo{display:flex;align-items:end;gap:var(--space-xs);font:700 var(--text-2xl)/1 var(--font-display);letter-spacing:-.06em}.login-logo small{color:var(--color-accent);font:700 var(--text-xs)/1 var(--font-body);letter-spacing:0}.login-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-block:var(--rule-thin) solid var(--color-rule)}.login-nav a{display:flex;align-items:center;justify-content:center;min-height:44px;border-inline-end:var(--rule-thin) solid var(--color-rule);background:var(--color-paper);color:var(--color-muted);padding:var(--space-xs);text-align:center;text-decoration:none;font-size:var(--text-sm)}.meadow-login{position:relative;min-height:30rem;background:var(--color-link) url("./assets/mixi/login-meadow.webp") center/cover no-repeat}.meadow-copy{position:absolute;inset-block-start:17%;inset-inline-start:8%;display:grid;border-inline-start:.15rem solid var(--color-panel);padding-inline-start:var(--space-sm);color:var(--color-panel);text-shadow:0 1px 2px oklch(18% 0.014 62 / .45)}.meadow-copy span{font-size:var(--text-sm)}.meadow-copy strong{font:700 var(--text-xl)/1.2 var(--font-display)}.login-form{position:absolute;inset-block-start:var(--space-md);inset-inline-end:var(--space-md);display:grid;gap:var(--space-xs);width:min(19rem,calc(100% - 2rem));border:.35rem solid oklch(99% 0.008 72 / .72);outline:var(--rule-thin) solid var(--color-rule);background:oklch(98% 0.012 72 / .92);padding:var(--space-sm);box-shadow:var(--shadow-whisper)}.login-form label:not(.remember-login){display:grid;gap:var(--space-2xs);font-size:var(--text-sm);font-weight:700}.login-form input{min-width:0;min-height:34px;border:var(--rule-thin) solid var(--color-rule);background:var(--color-panel);color:var(--color-ink);padding:var(--space-2xs) var(--space-xs)}.remember-login{display:flex;align-items:center;gap:var(--space-xs);font-size:var(--text-xs)}.remember-login input{min-height:auto}.login-form button{justify-self:center;min-width:7rem;min-height:36px;border:var(--rule-thin) solid var(--color-rule-strong);background:var(--color-accent);color:var(--color-accent-ink);font-weight:700;cursor:pointer}.login-form a{justify-self:center;font-size:var(--text-xs)}.reenactment-wide{margin:0;padding:var(--space-xs);color:var(--color-muted);text-align:center;font-size:var(--text-xs)}
+@media(hover:hover) and (pointer:fine){.mixi-page a:hover{color:var(--color-accent-hover)}.global-nav a:hover{background:var(--color-accent-hover);color:var(--color-accent-ink)!important}.old-button:hover,.old-form button:hover,.old-form input:hover,.old-form textarea:hover,.mixi-footer button:hover{background:var(--color-paper-2)}}.mixi-page a:active,.mixi-page button:active{transform:translateY(1px)}.mixi-page button:disabled,.mixi-page a[aria-disabled="true"],.old-form input:disabled,.old-form textarea:disabled{opacity:.52;cursor:not-allowed}.old-form input:focus-visible,.old-form textarea:focus-visible{outline-width:2px;outline-offset:1px}.old-form[data-state="success"]{border-color:var(--color-success)}.old-form[data-state="loading"]{cursor:progress}.old-form input[aria-invalid="true"],.old-form textarea[aria-invalid="true"]{border-color:var(--color-error)}
+@media(min-width:40rem){.global-nav{grid-template-columns:repeat(6,minmax(0,1fr));background:var(--color-accent)}.global-nav a{border-inline-end-color:var(--color-paper-3);color:var(--color-accent-ink)!important}.update-row{grid-template-columns:10rem minmax(0,1fr)}.profile-main{grid-template-columns:auto minmax(0,1fr);justify-items:start}.mixi-layout{grid-template-columns:11rem minmax(0,1fr)}.right-rail{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-sm)}}
+@media(min-width:60rem){.mixi-layout{grid-template-columns:12rem minmax(0,1fr) 11rem}.right-rail{grid-column:auto;display:block}}
+@media(max-width:39.99rem){.login-header{align-items:start}.login-header p{max-width:12rem}.meadow-login{min-height:34rem;background-position:30% center}.meadow-copy{inset-block-start:auto;inset-block-end:var(--space-lg)}.login-form{inset-inline:var(--space-sm);width:auto}.profile-data{grid-template-columns:5rem minmax(0,1fr)}}
+@media(pointer:coarse){.mixi-page a{display:inline-flex;align-items:center;min-height:44px}.friend-grid>a{display:grid}.update-body>a,.topic-row>a{display:inline}}
+@media(prefers-reduced-motion:reduce){.mixi-page *{transition-duration:150ms!important}}
+';
+open APP, ">ui:#app-root";
+open ROUTE, "route:hash";
+open CLOCK, "clock:60000";
+open DIARY_IN, "storage:local:perlscript-web/mixi/diaries-v2";
+open FOOT_IN, "storage:local:perlscript-web/mixi/footprints-v1";
+open COMM_IN, "storage:local:perlscript-web/mixi/communities-v1";
+$now = <CLOCK>;
+load_data();
+do watch(ROUTE, "visit");
+do watch(CLOCK, "tick");
+visit();
+mount(APP, "view");
+</script>
+<script>
+const perl = document.querySelector('#app');
+const source = document.querySelector('#source');
+const dialog = document.querySelector('#source-dialog');
+const runButton = document.querySelector('#run');
+const status = document.querySelector('#run-status');
+const errorPanel = document.querySelector('#error');
+let runCount = 0;
+source.value = perl.textContent.trim();
+const showError = error => {
+  errorPanel.textContent = `${error.name}: ${error.message}\n${error.excerpt || ''}`;
+  errorPanel.hidden = false;
+};
+PerlScript.setErrorHandler(showError);
+async function run() {
+  errorPanel.hidden = true;
+  runButton.disabled = true;
+  status.textContent = 'Running…';
+  perl.textContent = source.value;
+  perl.type = 'text/perl';
+  await new Promise(requestAnimationFrame);
+  try {
+    await PerlScript.runScripts();
+    runCount++;
+    status.textContent = `Run ${runCount} complete`;
+  } catch (error) {
+    showError(error);
+    status.textContent = 'Run failed — previous program is still active';
+  } finally {
+    runButton.disabled = false;
+  }
+}
+document.querySelector('#open-source').addEventListener('click', () => dialog.showModal());
+document.querySelector('#close-source').addEventListener('click', () => dialog.close());
+dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+runButton.addEventListener('click', run);
+run();
+</script>
+</body>
+</html>
