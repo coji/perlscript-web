@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: pnpm/setup@v1
         with:
-          runtime: node@22
+          runtime: node@24
           cache: true
       - run: pnpm run check
       - name: Assemble static site
@@ -34,10 +34,10 @@ jobs:
           cp index.html tokens.css _site/
           cp -R dist examples _site/
           touch _site/.nojekyll
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
       - name: Deploy
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
