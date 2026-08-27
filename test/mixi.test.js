@@ -72,13 +72,9 @@ test("the mixi archive keeps navigation, diaries, footprints, communities, and c
   runtime.scalars.route = "/view_diary.pl?id=106&owner_id=6";
   runtime.markDirty();
   runtime.flushUI();
-  const diaryProfileLink = root.childNodes
-    .flatMap(node => node.childNodes || [])
-    .flatMap(node => node.childNodes || [])
-    .find(node => node.getAttribute?.("class") === "left-rail")
-    ?.childNodes.flatMap(node => node.childNodes || [])
-    .find(node => node.getAttribute?.("href") === "#/show_friend.pl?id=6");
-  assert.ok(diaryProfileLink, "another user's diary links its left profile rail to that user");
+  assert.match(root.textContent, /最近のコメント/);
+  assert.match(root.textContent, /各月の日記/);
+  assert.doesNotMatch(root.textContent, /Dan Kogaiさんのマイミクシィ一覧/);
 
   const createDiary = (title, body) => {
     runtime.scalars.route = "/add_diary.pl";

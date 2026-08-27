@@ -108,8 +108,11 @@ The following is consistently visible across the November screenshots.
 - Home is a three-column dashboard: identity/MyMixi at left, update streams in
   the wide center, and dated shortcuts at right.
 - Inner screens commonly use a narrow left rail and a wide content panel.
-  Diary detail adds calendar, recent diaries/comments, and month archives to
-  the left rail. Community home shows members plus latest topics and events.
+  Diary detail uses the left rail exclusively for calendar, recent diaries,
+  recent comments, and month archives, in that order; it does not repeat the
+  profile photo or MyMixi grid. The standalone diary-list screen remains an
+  inference and reuses this diary-navigation rail. Community home shows members
+  plus latest topics and events.
 - Panels use a dark beige title strip, pale cream rows, orange rules, square
   tables, and tiny image ornaments. There is almost no open whitespace.
 - Form labels live in a colored left table cell. Inputs remain native-looking

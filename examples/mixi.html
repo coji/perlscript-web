@@ -257,31 +257,41 @@ sub site_header {
 
 sub left_rail {
     $rail_user = $current_user;
-    if ($route =~ /^\/list_diary\.pl\?id=([0-9]+)$/) { $rail_user = $1; }
-    if ($route =~ /^\/view_diary\.pl\?id=[0-9]+&owner_id=([0-9]+)$/) { $rail_user = $1; }
+    $diary_rail = 0;
+    if ($route =~ /^\/list_diary\.pl\?id=([0-9]+)$/) { $rail_user = $1; $diary_rail = 1; }
+    if ($route =~ /^\/view_diary\.pl\?id=[0-9]+&owner_id=([0-9]+)$/) { $rail_user = $1; $diary_rail = 1; }
     %rail_profile = find_user($rail_user);
     begin("aside", "class", "left-rail");
-    if ($route =~ /^\/view_diary\.pl/ || $route =~ /^\/list_diary\.pl/) {
+    if ($diary_rail eq 1) {
         begin("section", "class", "rail-box calendar-box"); begin("h2"); text("< 08月のカレンダー >"); end();
         begin("div", "class", "calendar-week"); text("日　月　火　水　木　金　土"); end();
         begin("div", "class", "calendar-days"); text("　　1　2　3　4　5　6　7　8　9　10　11　12　13　14　15　16　17　18　19　20　21　22　23　24　25　26　27　28　29　30　31"); end();
         end();
         begin("section", "class", "rail-box recent-box"); begin("h2"); text("最近の日記"); end();
         $recent_i = 0;
-        while ($recent_i <= $#diaries && $recent_i < 6) { %recent_diary = $diaries[$recent_i]; begin("a", "href", "#/view_diary.pl?id=" . $recent_diary{id} . "&owner_id=" . $recent_diary{owner}); text($recent_diary{title}); end(); $recent_i++; }
+        $recent_count = 0;
+        while ($recent_i <= $#diaries && $recent_count < 6) { %recent_diary = $diaries[$recent_i]; if ($recent_diary{owner} eq $rail_user) { begin("a", "href", "#/view_diary.pl?id=" . $recent_diary{id} . "&owner_id=" . $recent_diary{owner}); text($recent_diary{title}); end(); $recent_count++; } $recent_i++; }
+        end();
+        begin("section", "class", "rail-box recent-box diary-comments-box"); begin("h2"); text("最近のコメント"); end(); begin("a", "href", "#/list_diary.pl?id=" . $rail_user); text("一覧を見る"); end(); end();
+        begin("section", "class", "rail-box recent-box archive-box"); begin("h2"); text("各月の日記"); end();
+        begin("a", "href", "#/list_diary.pl?id=" . $rail_user); text("2005年11月の一覧"); end();
+        begin("a", "href", "#/list_diary.pl?id=" . $rail_user); text("2005年10月の一覧"); end();
+        begin("a", "href", "#/list_diary.pl?id=" . $rail_user); text("2005年09月の一覧"); end();
+        begin("a", "href", "#/list_diary.pl?id=" . $rail_user); text("2005年08月の一覧"); end();
+        end();
+    } else {
+        begin("section", "class", "rail-box profile-mini");
+        avatar($rail_user, "avatar-large");
+        begin("strong"); text($rail_profile{name}); end();
+        begin("a", "href", "#/show_friend.pl?id=" . $rail_profile{id}); text("プロフィール確認"); end();
+        end();
+        begin("section", "class", "rail-box"); begin("h2"); text($rail_profile{name} . "さんのマイミクシィ一覧"); end();
+        begin("div", "class", "friend-grid");
+        $friend_i = 1;
+        while ($friend_i <= $#users) { %friend = $users[$friend_i]; begin("a", "href", "#/show_friend.pl?id=" . $friend{id}); avatar($friend{id}, "avatar-small"); begin("span"); text($friend{name}); end(); end(); $friend_i++; }
+        end();
         end();
     }
-    begin("section", "class", "rail-box profile-mini");
-    avatar($rail_user, "avatar-large");
-    begin("strong"); text($rail_profile{name}); end();
-    begin("a", "href", "#/show_friend.pl?id=" . $rail_profile{id}); text("プロフィール確認"); end();
-    end();
-    begin("section", "class", "rail-box"); begin("h2"); text($rail_profile{name} . "さんのマイミクシィ一覧"); end();
-    begin("div", "class", "friend-grid");
-    $friend_i = 1;
-    while ($friend_i <= $#users) { %friend = $users[$friend_i]; begin("a", "href", "#/show_friend.pl?id=" . $friend{id}); avatar($friend{id}, "avatar-small"); begin("span"); text($friend{name}); end(); end(); $friend_i++; }
-    end();
-    end();
     end();
 }
 
