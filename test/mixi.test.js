@@ -49,15 +49,25 @@ test("the mixi archive keeps navigation, diaries, footprints, communities, and c
   assert.match(root.textContent, /naoya/);
   assert.match(root.textContent, /lestrrat/);
 
-  runtime.scalars.route = "/add_diary.pl";
-  runtime.scalars.diary_title = "Perlで書いた日記";
-  runtime.scalars.diary_body = "routeもstorageも普通のfilehandleだった。";
-  runtime.call("create_diary", []);
-  runtime.flushUI();
-  assert.equal(navigation.location.hash, "#/view_diary.pl?id=1787760000&owner_id=1");
+  const createDiary = (title, body) => {
+    runtime.scalars.route = "/add_diary.pl";
+    runtime.scalars.diary_title = title;
+    runtime.scalars.diary_body = body;
+    runtime.call("create_diary", []);
+    runtime.flushUI();
+  };
+  createDiary("Perlで書いた日記", "routeもstorageも普通のfilehandleだった。");
+  assert.equal(navigation.location.hash, "#/view_diary.pl?id=110&owner_id=1");
+  createDiary("同じ分に書いた二件目", "時計が進まなくても別の日記になる。");
+  assert.equal(navigation.location.hash, "#/view_diary.pl?id=111&owner_id=1");
   const diaries = JSON.parse(stored.get("perlscript-web/mixi/diaries-v2"));
-  assert.equal(diaries.at(-1).title, "Perlで書いた日記");
-  assert.equal(diaries.at(-1).owner, "1");
+  assert.deepEqual(diaries.slice(0, 2).map(diary => diary.id), [111, 110]);
+  assert.equal(diaries[0].title, "同じ分に書いた二件目");
+  assert.equal(diaries[0].owner, "1");
+  runtime.scalars.route = "/home.pl";
+  runtime.markDirty();
+  assert.doesNotThrow(() => runtime.flushUI());
+  assert.ok(root.textContent.indexOf("同じ分に書いた二件目") < root.textContent.indexOf("Perlで書いた日記"));
 
   runtime.scalars.view_user = "2";
   runtime.call("record_footprint", []);

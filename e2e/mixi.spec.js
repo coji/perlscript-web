@@ -75,6 +75,8 @@ test("writes to a community and exposes the editable Perl program", async ({ pag
   await page.getByLabel("このコミュニティに書き込む").fill("角丸をCSSだけで作れました。");
   await page.getByRole("button", { name: "書き込む" }).click();
   await expect(page.getByText("角丸をCSSだけで作れました。")).toBeVisible();
+  await page.getByRole("link", { name: "ホーム", exact: true }).click();
+  await expect(page.getByText("Re: コミュニティの話題")).toBeVisible();
   await page.getByRole("button", { name: "Perlソース" }).click();
   const editor = page.getByRole("textbox", { name: "Perl source" });
   await expect(editor).toHaveValue(/route:hash/);

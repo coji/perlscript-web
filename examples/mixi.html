@@ -40,6 +40,7 @@ $current_diary = "";
 $current_community = "";
 $login_email = "perl@example.jp";
 $login_password = "1987";
+$next_diary_id = 1;
 @users = ();
 @diaries = ();
 @footprints = ();
@@ -102,6 +103,16 @@ sub save_diaries { open DIARY_OUT, ">storage:local:perlscript-web/mixi/diaries-v
 sub save_footprints { open FOOT_OUT, ">storage:local:perlscript-web/mixi/footprints-v1"; print FOOT_OUT encode_json(@footprints); }
 sub save_communities { open COMM_OUT, ">storage:local:perlscript-web/mixi/communities-v1"; print COMM_OUT encode_json(@communities); }
 
+sub refresh_next_diary_id {
+    $next_diary_id = 1;
+    $id_i = 0;
+    while ($id_i <= $#diaries) {
+        %id_diary = $diaries[$id_i];
+        if ($id_diary{id} >= $next_diary_id) { $next_diary_id = $id_diary{id} + 1; }
+        $id_i++;
+    }
+}
+
 sub load_data {
     $stored_diaries = <DIARY_IN>;
     $stored_footprints = <FOOT_IN>;
@@ -113,6 +124,7 @@ sub load_data {
     else { save_footprints(); }
     if ($stored_communities ne "") { @communities = decode_json($stored_communities); }
     else { save_communities(); }
+    refresh_next_diary_id();
 }
 
 sub find_user {
@@ -152,10 +164,15 @@ sub tick { $now = <CLOCK>; }
 sub create_diary {
     return if $diary_title eq "";
     return if $diary_body eq "";
-    $new_diary_id = $now;
+    $new_diary_id = $next_diary_id;
+    $next_diary_id++;
     @new_comments = ();
     %new_diary = ("id", $new_diary_id, "owner", $current_user, "date", "UNIX $now", "title", $diary_title, "body", $diary_body, "comments", @new_comments);
-    push(@diaries, %new_diary);
+    @next_diaries = ();
+    push(@next_diaries, %new_diary);
+    $next_diary_i = 0;
+    while ($next_diary_i <= $#diaries) { push(@next_diaries, $diaries[$next_diary_i]); $next_diary_i++; }
+    @diaries = @next_diaries;
     save_diaries();
     $diary_title = "";
     $diary_body = "";
@@ -192,7 +209,11 @@ sub add_topic_reply {
         if ($reply_comm{id} eq $current_community) {
             @reply_topics = $reply_comm{topics};
             %new_topic = ("id", $now, "title", "Re: コミュニティの話題", "author", $current_user, "date", "UNIX $now", "body", $topic_body);
-            push(@reply_topics, %new_topic);
+            @next_topics = ();
+            push(@next_topics, %new_topic);
+            $next_topic_i = 0;
+            while ($next_topic_i <= $#reply_topics) { push(@next_topics, $reply_topics[$next_topic_i]); $next_topic_i++; }
+            @reply_topics = @next_topics;
             $reply_comm{topics} = @reply_topics;
             $communities[$comm_i] = %reply_comm;
         }
@@ -203,7 +224,7 @@ sub add_topic_reply {
 }
 
 sub reset_demo {
-    seed_data(); save_diaries(); save_footprints(); save_communities();
+    seed_data(); refresh_next_diary_id(); save_diaries(); save_footprints(); save_communities();
     $diary_title = ""; $diary_body = ""; $comment_body = ""; $topic_body = "";
     print ROUTE "/home.pl";
 }
