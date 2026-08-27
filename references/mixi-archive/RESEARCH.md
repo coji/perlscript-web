@@ -155,12 +155,23 @@ The following is consistently visible across the November screenshots.
 
 - The historical desktop breakpoint uses the exact CSS palette, a period
   Japanese system-font stack, a 720 px canvas, dense three-column home, and
-  two-level image-navigation proportions.
-- Login, home, diary detail, community home, footprints, profile, diary list,
-  and messages share the reconstructed 2004 visual grammar.
+  two-level image-navigation proportions. The authenticated banner is a small
+  generated original with the same 468 × 60 raster-era role as the source.
+- Login, home, footprints, invitation, registration, profile/photo editing,
+  friend request, member search, diary detail and composition, external-blog
+  settings, community home/search, and calendar have dedicated routes based on
+  their corresponding contemporary material.
 - Profile pages expose their latest diaries directly, followed by the MyMixi
   grid, matching the contemporary information hierarchy.
+- Home, diary, profile, and community routes use different left rails; screens
+  shown as wide single panels in the sources do not inherit a generic rail.
+- Diary composition exposes the documented three image slots, and the August
+  2005 calendar begins on Monday and mixes community, birthday, and private
+  events.
 - Profile, diary-list, and message details are deliberately conservative where
   complete contemporary screenshots have not yet been found.
 - Below 720 px the page reflows into one readable column with touch-sized
   controls; this does not alter the historical desktop composition.
+
+The current reproducible score and remaining differences are recorded in
+`AUDIT.md`.
