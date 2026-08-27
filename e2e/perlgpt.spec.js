@@ -27,7 +27,7 @@ test("PerlGPT configures a secret and streams an API response from its Perl prog
   await expect(page.locator("#source-editor.ace_editor")).toBeVisible({ timeout: 20_000 });
   await expect(page.locator("#source-editor .ace_keyword").first()).toBeVisible({ timeout: 20_000 });
   await expect(page.getByLabel("Perl runtime inspector")).toContainText("APP");
-  await expect(page.getByLabel("Perl runtime inspector")).toContainText("ui");
+  expect(await page.evaluate(() => globalThis.ace.edit("source-editor").getValue())).toContain('open APP, ">ui:#app-root";');
   await page.getByRole("button", { name: "I/O", exact: true }).click();
   expect(await page.evaluate(() => {
     const editor = globalThis.ace.edit("source-editor");
