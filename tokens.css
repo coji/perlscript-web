@@ -65,3 +65,27 @@
   --shadow-whisper: 0 1px 2px oklch(20% 0.02 258 / 0.06);
   --shadow-dialog: 0 1.5rem 5rem oklch(18% 0.02 258 / 0.2);
 }
+
+/* 2004 mixi archive demo — scoped so the Pages theme remains unchanged. */
+.mixi-page {
+  --color-paper: oklch(98% 0.012 72);
+  --color-paper-2: oklch(95% 0.028 72);
+  --color-paper-3: oklch(91% 0.055 72);
+  --color-panel: oklch(99% 0.008 72);
+  --color-rule: oklch(75% 0.075 72);
+  --color-rule-strong: oklch(62% 0.12 62);
+  --color-muted: oklch(42% 0.025 62);
+  --color-ink-2: oklch(30% 0.02 62);
+  --color-ink: oklch(18% 0.014 62);
+  --color-accent: oklch(57% 0.18 52);
+  --color-accent-hover: oklch(49% 0.17 52);
+  --color-accent-ink: oklch(98% 0.008 72);
+  --color-link: oklch(43% 0.16 248);
+  --color-focus: oklch(28% 0.17 248);
+  --color-error: oklch(48% 0.18 28);
+  --color-success: oklch(42% 0.13 145);
+  --color-overlay: oklch(18% 0.014 62 / 0.55);
+  --font-display: "Bricolage Grotesque", "Arial Narrow", sans-serif;
+  --font-body: "IBM Plex Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}

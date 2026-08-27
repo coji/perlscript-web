@@ -8,6 +8,8 @@ const pages = [
   "/examples/hello.html",
   "/examples/perlgpt.html",
   "/examples/2ch.html",
+  "/examples/mixi.html",
+  "/examples/mixi.html#/home.pl",
 ];
 
 for (const width of [320, 375, 414, 768]) {
