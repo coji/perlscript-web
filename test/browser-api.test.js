@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { run, runScripts, disposeScript, setErrorHandler } from "../src/browser.js";
+import { run, runScripts, disposeScript, setErrorHandler, registerStream } from "../src/browser.js";
 import { FakeElement, createFakeDocument, createPerlScript } from "./helpers/fake-dom.js";
 
 const program = 'open OUT, ">dom:#out"; open CLICK, "event:click:#button"; sub post { print OUT "x"; } do watch(CLICK, "post");';
@@ -83,6 +83,80 @@ test("failed PerlUI rerun preserves the previous DOM and listener", async () => 
   button.emit("click");
   assert.equal(root.textContent, "Count: 1");
   disposeScript(script);
+});
+
+test("failed watched actions restore Perl state and the last good UI", () => {
+  const root = new FakeElement();
+  const button = new FakeElement();
+  const state = createFakeDocument({ "#app": root, "#trigger": button });
+  const errors = [];
+  const runtime = run(`
+    $count = 0;
+    sub broken { $count++; do missing(); }
+    sub view { begin("p"); text("Count: $count"); end(); }
+    open APP, ">ui:#app";
+    mount(APP, "view");
+    open TRIGGER, "event:click:#trigger";
+    do watch(TRIGGER, "broken");
+  `, { document: state.document, onError: error => errors.push(error) });
+
+  button.emit("click");
+  assert.equal(errors.length, 1);
+  assert.equal(runtime.scalars.count, 0);
+  assert.equal(root.textContent, "Count: 0");
+  runtime.dispose();
+});
+
+test("failed reruns roll back staged storage and route writes", async () => {
+  const state = fixture();
+  const values = new Map([["app/state", "before"]]);
+  const localStorage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, String(value)),
+    removeItem: key => values.delete(key),
+  };
+  const location = { pathname: "/before", search: "", hash: "" };
+  const listeners = new Map();
+  state.document.defaultView = {
+    localStorage,
+    location,
+    history: { pushState(_state, _title, route) { location.pathname = String(route); } },
+    addEventListener(type, listener) {
+      if (!listeners.has(type)) listeners.set(type, new Set());
+      listeners.get(type).add(listener);
+    },
+    removeEventListener(type, listener) { listeners.get(type)?.delete(listener); },
+  };
+  await runScripts(state.document);
+  state.script.textContent = `
+    open DATA, ">storage:local:app/state";
+    print DATA "after";
+    open ROUTE, "route:history";
+    print ROUTE "/after";
+    do missing();
+  `;
+  await assert.rejects(runScripts(state.document), /Undefined subroutine/);
+  assert.equal(values.get("app/state"), "before");
+  assert.equal(location.pathname, "/before");
+  state.button.emit("click");
+  assert.equal(state.out.textContent, "x");
+  disposeScript(state.script);
+});
+
+test("unregistering a stream restores the previous registration", () => {
+  const { document } = createFakeDocument();
+  const opened = [];
+  const first = registerStream("layered", () => { opened.push("first"); return { write() {} }; });
+  const second = registerStream("layered", () => { opened.push("second"); return { write() {} }; });
+  try {
+    run('open STREAM, "stream:layered";', { document }).dispose();
+    second();
+    run('open STREAM, "stream:layered";', { document }).dispose();
+    assert.deepEqual(opened, ["second", "first"]);
+  } finally {
+    second();
+    first();
+  }
 });
 
 test("the newest overlapping external run wins and superseded listeners are absent", async () => {

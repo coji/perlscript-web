@@ -81,6 +81,14 @@ export class Lexer {
     const start = this.index;
     const sigil = this.source[this.index++];
     const nameStart = this.index;
+    if (/\d/.test(this.source[this.index] || "")) {
+      while (/[A-Za-z0-9_]/.test(this.source[this.index] || "")) this.index++;
+      const name = this.source.slice(nameStart, this.index);
+      if (sigil !== "$" || !/^[1-9]$/.test(name)) {
+        throw this.error(`Capture variables are limited to $1 through $9; got ${sigil}${name}`, start, this.index);
+      }
+      return this.token("variable", name, start, { sigil });
+    }
     while (/[A-Za-z0-9_]/.test(this.source[this.index] || "")) this.index++;
     if (nameStart === this.index) throw this.error("Missing variable name", start, this.index);
     return this.token("variable", this.source.slice(nameStart, this.index), start, { sigil });

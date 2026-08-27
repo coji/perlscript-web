@@ -22,6 +22,8 @@ var PerlScript = (() => {
   var auto_exports = {};
   __export(auto_exports, {
     disposeScript: () => disposeScript,
+    installWebAdapters: () => installWebAdapters,
+    registerStream: () => registerStream,
     run: () => run,
     runScripts: () => runScripts,
     setErrorHandler: () => setErrorHandler
@@ -164,6 +166,14 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       const start = this.index;
       const sigil = this.source[this.index++];
       const nameStart = this.index;
+      if (/\d/.test(this.source[this.index] || "")) {
+        while (/[A-Za-z0-9_]/.test(this.source[this.index] || "")) this.index++;
+        const name = this.source.slice(nameStart, this.index);
+        if (sigil !== "$" || !/^[1-9]$/.test(name)) {
+          throw this.error(`Capture variables are limited to $1 through $9; got ${sigil}${name}`, start, this.index);
+        }
+        return this.token("variable", name, start, { sigil });
+      }
       while (/[A-Za-z0-9_]/.test(this.source[this.index] || "")) this.index++;
       if (nameStart === this.index) throw this.error("Missing variable name", start, this.index);
       return this.token("variable", this.source.slice(nameStart, this.index), start, { sigil });
@@ -504,37 +514,64 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
     constructor() {
       this.handles = /* @__PURE__ */ new Map([["STDOUT", { type: "memory", value: "" }]]);
       this.selected = "STDOUT";
+      this.observer = null;
+    }
+    /** @param {((event:Record<string,*>)=>void)|null} observer */
+    setObserver(observer) {
+      this.observer = observer;
+    }
+    /** @param {Record<string,*>} event */
+    observe(event) {
+      this.observer?.(event);
     }
     /** @param {string} name @param {*} spec */
     open(name, spec) {
       this.handles.set(name, { type: "memory", spec, value: "" });
+      this.observe({ kind: "io", action: "open", handle: name, target: "memory" });
     }
     /** @param {string} name */
     select(name) {
       this.require(name);
       this.selected = name;
+      this.observe({ kind: "io", action: "select", handle: name });
     }
     /** @param {string} name */
     read(name) {
       const handle = this.require(name);
       if (handle.type !== "memory") throw new Error(`${name} is not a memory filehandle`);
-      return String(handle.value ?? "");
+      const value = String(handle.value ?? "");
+      this.observe({ kind: "io", action: "read", handle: name, bytes: value.length });
+      return value;
     }
     /** @param {string} name @param {*} value */
     write(name, value) {
       const handle = this.require(name);
       if (handle.type !== "memory") throw new Error(`${name} is not a memory filehandle`);
-      handle.value = String(handle.value ?? "") + value;
+      const text = String(value);
+      handle.value = String(handle.value ?? "") + text;
+      this.observe({ kind: "io", action: "write", handle: name, bytes: text.length });
     }
     /** @param {string} [name] */
     clear(name = this.selected) {
       const handle = this.require(name);
       if (handle.type !== "memory") throw new Error(`${name} is not a memory filehandle`);
       handle.value = "";
+      this.observe({ kind: "io", action: "clear", handle: name });
     }
     /** @param {string} _handleName @param {string} _subName @param {Function} _callback */
     watch(_handleName, _subName, _callback) {
       throw new Error("Event handles require BrowserIO");
+    }
+    /** @param {string} name */
+    eof(name) {
+      this.require(name);
+      throw new Error("EOF requires a stream filehandle");
+    }
+    /** @param {string} name */
+    close(name) {
+      this.require(name);
+      this.handles.delete(name);
+      this.observe({ kind: "io", action: "close", handle: name });
     }
     /** @param {string} _name */
     validateUI(_name) {
@@ -827,6 +864,7 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
   var perlBoolean = (value) => value ? 1 : "";
   var num = (value) => Number(value) || 0;
   var isReturnSignal = (value) => value?.type === RETURN;
+  var SENSITIVE_NAME = /(?:api[_-]?key|secret|token|password|credential|authorization)/i;
   function assertNever(value) {
     throw new Error("Unhandled AST node");
   }
@@ -846,6 +884,57 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       this.rendering = false;
       this.dirty = false;
       this.callStack = [];
+      this.events = [];
+      this.observers = /* @__PURE__ */ new Set();
+      this.eventSequence = 0;
+      this.lastSub = "";
+      this.renderCount = 0;
+      this.transactionCount = 0;
+      this.io.setObserver((event) => this.record(event));
+    }
+    /** @param {Record<string,*>} event */
+    record(event) {
+      const entry = { id: ++this.eventSequence, ...event };
+      this.events.push(entry);
+      if (this.events.length > 200) this.events.shift();
+      for (const observer of [...this.observers]) {
+        try {
+          observer(entry);
+        } catch {
+        }
+      }
+    }
+    /** @param {(event:Record<string,*>)=>void} observer @returns {()=>void} */
+    subscribe(observer) {
+      if (typeof observer !== "function") throw new TypeError("Runtime observer must be a function");
+      this.observers.add(observer);
+      return () => this.observers.delete(observer);
+    }
+    /** @returns {{scalars:Record<string,*>,arrays:Record<string,*[]>,hashes:Record<string,Record<string,*>>,handles:Array<{name:string,type:string}>,mounts:Array<{handle:string,view:string}>,lastSub:string,renderCount:number,transactionCount:number,events:Array<Record<string,*>>}} */
+    inspect() {
+      return {
+        scalars: this.inspectRecord(this.scalars),
+        arrays: this.inspectRecord(this.arrays),
+        hashes: this.inspectRecord(this.hashes),
+        handles: [...this.io.handles].map(([name, handle]) => ({ name, type: handle.type })),
+        mounts: [...this.mounts].map(([handle, view]) => ({ handle, view })),
+        lastSub: this.lastSub,
+        renderCount: this.renderCount,
+        transactionCount: this.transactionCount,
+        events: this.events.map((event) => ({ ...event }))
+      };
+    }
+    /** @param {Record<string,*>} record @returns {Record<string,*>} */
+    inspectRecord(record) {
+      const copy = /* @__PURE__ */ Object.create(null);
+      for (const [name, value] of Object.entries(record)) copy[name] = SENSITIVE_NAME.test(name) && value !== "" ? "[redacted]" : this.inspectValue(value);
+      return copy;
+    }
+    /** @param {*} value @returns {*} */
+    inspectValue(value) {
+      if (Array.isArray(value)) return value.map((item) => this.inspectValue(item));
+      if (value && typeof value === "object") return this.inspectRecord(value);
+      return value;
     }
     /** @param {string} source @returns {Runtime} */
     run(source) {
@@ -854,9 +943,11 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
     }
     /** @param {import('./types.js').Program} program @returns {Runtime} */
     execute(program) {
+      this.record({ kind: "runtime", action: "start" });
       for (const statement of program.body) if (statement.type === "sub") this.subs.set(statement.name, statement);
       for (const statement of program.body) if (statement.type !== "sub") this.exec(statement);
       this.flushUI();
+      this.record({ kind: "runtime", action: "ready" });
       return this;
     }
     /** @param {import('./types.js').Statement} node @returns {*} */
@@ -1023,8 +1114,9 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
         case "=~":
         case "!~": {
           const rx = right?.regex ? new RegExp(right.pattern, right.flags) : new RegExp(String(right));
-          const match = rx.test(String(left));
-          return perlBoolean(op === "=~" ? match : !match);
+          const result = rx.exec(String(left));
+          if (result) for (let index = 1; index <= 9; index++) this.scalars[String(index)] = result[index] ?? "";
+          return perlBoolean(op === "=~" ? Boolean(result) : !result);
         }
         default:
           throw new Error(`Unknown operator ${op}`);
@@ -1049,7 +1141,27 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       }
       if (name === "keys") return Object.keys(args[0]);
       if (name === "values") return Object.values(args[0]);
+      if (name === "encode_json") {
+        const value = JSON.stringify(args[0]);
+        return value === void 0 ? "" : value;
+      }
+      if (name === "decode_json") return JSON.parse(this.stringify(args[0]));
+      if (name === "json_boolean") return Boolean(truthy(args[0]));
+      if (name === "json_get") {
+        let value = args[0];
+        for (const key of args.slice(1)) {
+          if (value === null || value === void 0 || typeof value !== "object") return "";
+          value = value[this.stringify(key)];
+        }
+        return value ?? "";
+      }
       if (name === "clear") return this.io.clear();
+      if (name === "eof") return this.io.eof(args[0]);
+      if (name === "close") {
+        const handle = this.stringify(args[0]);
+        this.mounts.delete(handle);
+        return this.io.close(handle);
+      }
       if (name === "mount") return this.mount(args[0], args[1]);
       if (name === "begin") return this.requireUI(name).begin(args[0], args.slice(1));
       if (name === "text") return this.requireUI(name).text(args[0]);
@@ -1066,8 +1178,9 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       if (name === "end") return this.requireUI(name).end();
       if (name === "watch") return this.io.watch(args[0], args[1], () => {
         try {
-          this.call(args[1], []);
-          this.flushUI();
+          this.transaction(() => {
+            this.call(args[1], []);
+          });
         } catch (error) {
           if (!this.onError) throw error;
           this.onError(error instanceof Error ? error : new Error(String(error)));
@@ -1075,6 +1188,8 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       });
       const sub = this.subs.get(name);
       if (!sub) throw new Error(`Undefined subroutine ${name}`);
+      this.lastSub = name;
+      this.record({ kind: "runtime", action: "call", sub: name, phase: this.rendering ? "render" : "action" });
       const previous = this.arrays._;
       this.arrays._ = args;
       this.callStack.push(name);
@@ -1095,7 +1210,11 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
     }
     /** @param {string} value @returns {string} */
     interpolate(value) {
-      return value.replace(/\$([A-Za-z_]\w*)/g, (_match, name) => this.stringify(this.scalars[name] ?? "")).replaceAll(ESCAPED_DOLLAR, "$");
+      const unsupportedCapture = value.match(/\$(\d[A-Za-z0-9_]*)/);
+      if (unsupportedCapture && !/^[1-9]$/.test(unsupportedCapture[1])) {
+        throw new Error(`Capture variables are limited to $1 through $9; got $${unsupportedCapture[1]}`);
+      }
+      return value.replace(/\$([A-Za-z_]\w*|[1-9])/g, (_match, name) => this.stringify(this.scalars[name] ?? "")).replaceAll(ESCAPED_DOLLAR, "$");
     }
     /** @param {import('./types.js').Expression} node @returns {*[]} */
     indexTarget(node) {
@@ -1132,6 +1251,7 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       if (this.mounts.has(handle)) throw new Error(`UI handle ${handle} is already mounted`);
       this.mounts.set(handle, view);
       this.dirty = true;
+      this.record({ kind: "runtime", action: "mount", handle, sub: view });
       return "";
     }
     /** @param {string} operation @returns {UITreeBuilder} */
@@ -1173,6 +1293,10 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
           (sub, args, updates) => this.dispatchUI(sub, args, updates)
         );
       }
+      if (candidates.length) {
+        this.renderCount++;
+        this.record({ kind: "runtime", action: "render", mounts: candidates.length, count: this.renderCount });
+      }
     }
     /** @param {string|null} sub @param {*[]} args @param {Array<[string,*]>} updates */
     dispatchUI(sub, args, updates) {
@@ -1191,9 +1315,12 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
     transaction(action) {
       const state = this.snapshot();
       const wasDirty = this.dirty;
+      const transaction = ++this.transactionCount;
+      this.record({ kind: "runtime", action: "transaction", phase: "start", transaction });
       try {
         action();
         this.flushUI();
+        this.record({ kind: "runtime", action: "transaction", phase: "commit", transaction });
       } catch (error) {
         this.restore(state);
         this.dirty = this.mounts.size > 0;
@@ -1202,6 +1329,7 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
         } catch {
         }
         this.dirty = wasDirty;
+        this.record({ kind: "runtime", action: "transaction", phase: "rollback", transaction });
         throw error;
       }
     }
@@ -1227,33 +1355,262 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       return value;
     }
     dispose() {
+      this.record({ kind: "runtime", action: "dispose" });
       this.io.dispose();
+      this.observers.clear();
     }
   };
 
   // src/browser-io.js
+  var memoryStorage = () => {
+    const values = /* @__PURE__ */ new Map();
+    return {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, String(value)),
+      removeItem: (key) => values.delete(key)
+    };
+  };
+  var fallbackStorage = { local: memoryStorage(), session: memoryStorage() };
+  function resolveStorage(document2, kind, override) {
+    if (override) return override;
+    try {
+      const property = `${kind}Storage`;
+      const view = (
+        /** @type {*} */
+        document2.defaultView
+      );
+      const root = (
+        /** @type {*} */
+        globalThis
+      );
+      return view?.[property] || root[property] || fallbackStorage[kind];
+    } catch {
+      return fallbackStorage[kind];
+    }
+  }
+  function resolveNavigation(document2, override) {
+    if (override) return override;
+    const view = (
+      /** @type {*} */
+      document2.defaultView || globalThis.window
+    );
+    if (!view?.location || !view?.history || typeof view.addEventListener !== "function") return null;
+    return view;
+  }
+  function resolveClock(override) {
+    return {
+      now: override?.now || Date.now,
+      setInterval: override?.setInterval || globalThis.setInterval.bind(globalThis),
+      clearInterval: override?.clearInterval || globalThis.clearInterval.bind(globalThis)
+    };
+  }
+  function currentRoute(navigation, mode) {
+    if (mode === "hash") return String(navigation.location.hash || "").replace(/^#/, "") || "/";
+    return `${navigation.location.pathname || "/"}${navigation.location.search || ""}${navigation.location.hash || ""}`;
+  }
+  function validateRoute(route) {
+    if (!route.startsWith("/") || route.startsWith("//") || /[\r\n]/.test(route)) throw new Error(`Invalid route ${route || "(empty)"}`);
+  }
   var BrowserIO = class extends MemoryIO {
-    /** @param {Document} document */
-    constructor(document2) {
+    /**
+     * @param {Document} document
+     * @param {{streams?:Map<string,Function>|Record<string,Function>,storage?:{local?:*,session?:*},navigation?:*,clock?:{now?:()=>number,setInterval?:(callback:Function,interval:number)=>*,clearInterval?:(timer:*)=>void}}} [options]
+     */
+    constructor(document2, options = {}) {
       super();
       this.document = document2;
-      this.listeners = [];
+      this.streams = options.streams instanceof Map ? options.streams : new Map(Object.entries(options.streams || {}));
+      this.storage = {
+        local: resolveStorage(document2, "local", options.storage?.local),
+        session: resolveStorage(document2, "session", options.storage?.session)
+      };
+      this.navigation = resolveNavigation(document2, options.navigation);
+      this.clock = resolveClock(options.clock);
+      this.styles = /* @__PURE__ */ new Map();
+      this.effects = null;
+    }
+    beginEffects() {
+      if (this.effects) throw new Error("Browser I/O effects are already staged");
+      this.effects = { storage: /* @__PURE__ */ new Map(), routes: [], routeValues: /* @__PURE__ */ new Map() };
+    }
+    commitEffects() {
+      const effects = this.effects;
+      if (!effects) return;
+      this.effects = null;
+      try {
+        for (const [area, entries] of effects.storage) {
+          for (const [key, entry] of entries) {
+            if (entry.value === null) area.removeItem(key);
+            else area.setItem(key, entry.value);
+          }
+        }
+        for (const { navigation, mode, route } of effects.routes) {
+          if (mode === "hash") navigation.location.hash = `#${route}`;
+          else navigation.history.pushState(null, "", route);
+        }
+      } catch (error) {
+        for (const [area, entries] of effects.storage) {
+          for (const [key, entry] of entries) {
+            try {
+              if (entry.original === null) area.removeItem(key);
+              else area.setItem(key, entry.original);
+            } catch {
+            }
+          }
+        }
+        throw error;
+      }
+    }
+    rollbackEffects() {
+      this.effects = null;
+    }
+    /** @param {*} area @param {string} key */
+    storageValue(area, key) {
+      const staged = this.effects?.storage.get(area)?.get(key);
+      return staged ? staged.value : area.getItem(key);
+    }
+    /** @param {*} area @param {string} key @param {string|null} value */
+    setStorageValue(area, key, value) {
+      if (!this.effects) {
+        if (value === null) area.removeItem(key);
+        else area.setItem(key, value);
+        return;
+      }
+      let entries = this.effects.storage.get(area);
+      if (!entries) {
+        entries = /* @__PURE__ */ new Map();
+        this.effects.storage.set(area, entries);
+      }
+      const existing = entries.get(key);
+      entries.set(key, { original: existing?.original ?? area.getItem(key), value });
+    }
+    /** @param {'hash'|'history'} mode */
+    routeValue(mode) {
+      return this.effects?.routeValues.get(mode) ?? currentRoute(this.navigation, mode);
+    }
+    /** @param {'hash'|'history'} mode @param {string} value */
+    publishRoute(mode, value) {
+      for (const [name, candidate] of this.handles) {
+        if (candidate.type !== "route" || candidate.mode !== mode || candidate.value === value) continue;
+        candidate.value = value;
+        this.observe({ kind: "io", action: "change", handle: name });
+        for (const callback of [...candidate.watchers]) callback();
+      }
     }
     /** @param {string} name @param {*} spec */
     open(name, spec) {
       const value = String(spec);
+      const append = value.startsWith(">>");
       const output = value.startsWith(">");
-      const body = output ? value.slice(1) : value;
+      const body = output ? value.slice(append ? 2 : 1) : value;
       let type;
       let event;
       let selector;
-      if (body.startsWith("ui:")) {
+      if (body.startsWith("css:")) {
+        const sheetName = body.slice(4);
+        if (!output || !/^[A-Za-z0-9._-]+$/.test(sheetName)) throw new Error(`Invalid browser filehandle spec ${value}`);
+        let sheet = this.styles.get(sheetName);
+        if (!sheet) {
+          const element2 = this.document.createElement("style");
+          element2.setAttribute("data-perlscript-css", sheetName);
+          const parent = this.document.head || this.document.querySelector("head") || this.document.documentElement;
+          if (!parent || typeof parent.append !== "function") throw new Error("Document cannot host a CSS filehandle");
+          parent.append(element2);
+          sheet = { element: element2, value: "" };
+          this.styles.set(sheetName, sheet);
+        }
+        if (!append) {
+          sheet.value = "";
+          sheet.element.textContent = "";
+        }
+        if (this.handles.has(name)) this.close(name);
+        this.handles.set(name, { type: "css", sheet });
+        this.observe({ kind: "io", action: "open", handle: name, target: value });
+        return;
+      } else if (append) {
+        throw new Error(`Invalid browser filehandle spec ${value}`);
+      } else if (body.startsWith("route:")) {
+        if (output || !/^route:(hash|history)$/.test(body)) throw new Error(`Invalid browser filehandle spec ${value}`);
+        if (!this.navigation) throw new Error("Route filehandles require a browser navigation object");
+        if (this.handles.has(name)) this.close(name);
+        const mode = (
+          /** @type {'hash'|'history'} */
+          body.slice(6)
+        );
+        const navigation = this.navigation;
+        const handle = { type: "route", mode, navigation, value: this.routeValue(mode), watchers: /* @__PURE__ */ new Set(), removeListener: null };
+        this.handles.set(name, handle);
+        this.observe({ kind: "io", action: "open", handle: name, target: value });
+        return;
+      } else if (body.startsWith("clock:")) {
+        if (output || !/^clock:[0-9]+$/.test(body)) throw new Error(`Invalid browser filehandle spec ${value}`);
+        const interval = Number(body.slice(6));
+        if (!Number.isSafeInteger(interval) || interval < 16 || interval > 864e5) throw new Error(`Invalid clock interval ${interval}`);
+        if (this.handles.has(name)) this.close(name);
+        this.handles.set(name, { type: "clock", interval, clock: this.clock, watchers: /* @__PURE__ */ new Set(), timer: null });
+        this.observe({ kind: "io", action: "open", handle: name, target: value });
+        return;
+      } else if (body.startsWith("storage:")) {
+        const match = /^storage:(local|session):(.+)$/.exec(body);
+        if (!match) throw new Error(`Invalid browser filehandle spec ${value}`);
+        const kind = (
+          /** @type {'local'|'session'} */
+          match[1]
+        );
+        const area = this.storage[kind];
+        const key = match[2];
+        if (this.handles.has(name)) this.close(name);
+        if (output) this.setStorageValue(area, key, null);
+        this.handles.set(name, { type: "storage", area, key, writable: output, value: "" });
+        this.observe({ kind: "io", action: "open", handle: name, target: value });
+        return;
+      } else if (body.startsWith("stream:")) {
+        if (output) throw new Error(`Stream filehandle is bidirectional: ${value}`);
+        const streamName = body.slice(7);
+        const factory = this.streams.get(streamName);
+        if (!streamName || !factory) throw new Error(`Unknown browser stream ${streamName || value}`);
+        if (this.handles.has(name)) this.close(name);
+        const handle = {
+          type: "stream",
+          name: streamName,
+          adapter: { write() {
+          } },
+          queue: [],
+          watchers: /* @__PURE__ */ new Set(),
+          ended: true,
+          closed: false
+        };
+        const notify = () => {
+          for (const callback of [...handle.watchers]) callback();
+        };
+        const adapter = factory({
+          emit: (value2) => {
+            if (!handle.closed) {
+              handle.queue.push(String(value2));
+              notify();
+            }
+          },
+          end: () => {
+            if (!handle.closed) {
+              handle.ended = true;
+              notify();
+            }
+          }
+        });
+        if (!adapter || typeof adapter.write !== "function") throw new Error(`Browser stream ${streamName} must provide write()`);
+        handle.adapter = adapter;
+        this.handles.set(name, handle);
+        this.observe({ kind: "io", action: "open", handle: name, target: value });
+        return;
+      } else if (body.startsWith("ui:")) {
         if (!output) throw new Error(`UI filehandle must be writable: ${value}`);
         selector = body.slice(3);
         if (!selector) throw new Error(`Invalid browser filehandle spec ${value}`);
         const element2 = this.document.querySelector(selector);
         if (!element2) throw new Error(`No element matches ${selector}`);
+        if (this.handles.has(name)) this.close(name);
         this.handles.set(name, { type: "ui", element: element2, renderer: new DOMUIRenderer(this.document, element2) });
+        this.observe({ kind: "io", action: "open", handle: name, target: value });
         return;
       } else if (body.startsWith("dom:")) {
         type = "dom";
@@ -1273,20 +1630,83 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       }
       const element = this.document.querySelector(selector);
       if (!element) throw new Error(`No element matches ${selector}`);
-      this.handles.set(name, type === "event" ? { type: "event", element, event: event || "" } : { type: output ? "dom-out" : "dom-in", element });
+      if (this.handles.has(name)) this.close(name);
+      this.handles.set(name, type === "event" ? { type: "event", element, event: event || "", cleanups: /* @__PURE__ */ new Set() } : { type: output ? "dom-out" : "dom-in", element });
+      this.observe({ kind: "io", action: "open", handle: name, target: value });
     }
     /** @param {string} name */
     read(name) {
       const handle = this.require(name);
-      if (handle.type === "dom-in") return String("value" in handle.element ? handle.element.value : handle.element.textContent || "");
+      if (handle.type === "route") {
+        const value = this.routeValue(handle.mode);
+        handle.value = value;
+        this.observe({ kind: "io", action: "read", handle: name, bytes: value.length });
+        return value;
+      }
+      if (handle.type === "clock") {
+        const value = String(Math.floor(handle.clock.now() / 1e3));
+        this.observe({ kind: "io", action: "read", handle: name, bytes: value.length });
+        return value;
+      }
+      if (handle.type === "storage") {
+        const value = String(this.storageValue(handle.area, handle.key) ?? "");
+        this.observe({ kind: "io", action: "read", handle: name, bytes: value.length });
+        return value;
+      }
+      if (handle.type === "stream") {
+        const value = handle.queue.shift() ?? "";
+        this.observe({ kind: "io", action: "read", handle: name, bytes: value.length });
+        return value;
+      }
+      if (handle.type === "dom-in") {
+        const value = String("value" in handle.element ? handle.element.value : handle.element.textContent || "");
+        this.observe({ kind: "io", action: "read", handle: name, bytes: value.length });
+        return value;
+      }
       return super.read(name);
     }
     /** @param {string} name @param {*} value */
     write(name, value) {
       const handle = this.require(name);
+      const bytes = String(value).length;
+      if (handle.type === "route") {
+        const route = String(value);
+        validateRoute(route);
+        if (this.effects) {
+          this.effects.routes.push({ navigation: handle.navigation, mode: handle.mode, route });
+          this.effects.routeValues.set(handle.mode, route);
+        } else {
+          if (handle.mode === "hash") handle.navigation.location.hash = `#${route}`;
+          else handle.navigation.history.pushState(null, "", route);
+        }
+        this.publishRoute(handle.mode, route);
+        this.observe({ kind: "io", action: "write", handle: name, bytes });
+        return;
+      }
+      if (handle.type === "clock") throw new Error(`${name} is a read-only clock filehandle`);
+      if (handle.type === "storage") {
+        if (!handle.writable) throw new Error(`${name} is a read-only storage filehandle`);
+        handle.value += String(value);
+        this.setStorageValue(handle.area, handle.key, handle.value);
+        this.observe({ kind: "io", action: "write", handle: name, bytes });
+        return;
+      }
+      if (handle.type === "css") {
+        handle.sheet.value += String(value);
+        handle.sheet.element.textContent = handle.sheet.value;
+        this.observe({ kind: "io", action: "write", handle: name, bytes });
+        return;
+      }
+      if (handle.type === "stream") {
+        if (handle.closed) throw new Error(`${name} is a closed stream filehandle`);
+        handle.ended = false;
+        this.observe({ kind: "io", action: "write", handle: name, bytes });
+        return handle.adapter.write(String(value));
+      }
       if (handle.type === "dom-in") {
         if ("value" in handle.element) handle.element.value = String(value);
         else handle.element.textContent = String(value);
+        this.observe({ kind: "io", action: "write", handle: name, bytes });
         return;
       }
       if (handle.type === "dom-out") {
@@ -1296,6 +1716,7 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
         } else {
           handle.element.textContent = (handle.element.textContent || "") + value;
         }
+        this.observe({ kind: "io", action: "write", handle: name, bytes });
         return;
       }
       super.write(name, value);
@@ -1303,9 +1724,22 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
     /** @param {string} [name] */
     clear(name = this.selected) {
       const handle = this.require(name);
+      if (handle.type === "storage") {
+        handle.value = "";
+        this.setStorageValue(handle.area, handle.key, null);
+        this.observe({ kind: "io", action: "clear", handle: name });
+        return;
+      }
+      if (handle.type === "css") {
+        handle.sheet.value = "";
+        handle.sheet.element.textContent = "";
+        this.observe({ kind: "io", action: "clear", handle: name });
+        return;
+      }
       if (handle.type === "dom-out" || handle.type === "dom-in") {
         if ("value" in handle.element && handle.type === "dom-in") handle.element.value = "";
         else handle.element.textContent = "";
+        this.observe({ kind: "io", action: "clear", handle: name });
         return;
       }
       super.clear(name);
@@ -1313,7 +1747,35 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
     /** @param {string} handleName @param {string} subName @param {Function} callback */
     watch(handleName, subName, callback) {
       const handle = this.require(handleName);
-      if (handle.type !== "event") throw new Error(`${handleName} is not an event filehandle`);
+      if (handle.type === "route") {
+        handle.watchers.add(callback);
+        if (!handle.removeListener) {
+          const event = handle.mode === "hash" ? "hashchange" : "popstate";
+          const listener2 = () => {
+            const next = currentRoute(handle.navigation, handle.mode);
+            this.publishRoute(handle.mode, next);
+          };
+          handle.navigation.addEventListener(event, listener2);
+          handle.removeListener = () => handle.navigation.removeEventListener(event, listener2);
+        }
+        this.observe({ kind: "io", action: "watch", handle: handleName, sub: subName });
+        return;
+      }
+      if (handle.type === "clock") {
+        handle.watchers.add(callback);
+        if (handle.timer === null) handle.timer = handle.clock.setInterval(() => {
+          this.observe({ kind: "io", action: "tick", handle: handleName });
+          for (const watcher of [...handle.watchers]) watcher();
+        }, handle.interval);
+        this.observe({ kind: "io", action: "watch", handle: handleName, sub: subName });
+        return;
+      }
+      if (handle.type === "stream") {
+        handle.watchers.add(callback);
+        this.observe({ kind: "io", action: "watch", handle: handleName, sub: subName });
+        return;
+      }
+      if (handle.type !== "event") throw new Error(`${handleName} is not a watchable filehandle`);
       const listener = (event) => {
         const keyboard = (
           /** @type {KeyboardEvent} */
@@ -1323,7 +1785,42 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
         callback(event, subName);
       };
       handle.element.addEventListener(handle.event, listener);
-      this.listeners.push(() => handle.element.removeEventListener(handle.event, listener));
+      handle.cleanups.add(() => handle.element.removeEventListener(handle.event, listener));
+      this.observe({ kind: "io", action: "watch", handle: handleName, sub: subName });
+    }
+    /** @param {string} name */
+    eof(name) {
+      const handle = this.require(name);
+      if (handle.type !== "stream") return super.eof(name);
+      return handle.ended && handle.queue.length === 0 ? 1 : "";
+    }
+    /** @param {string} name */
+    close(name) {
+      const handle = this.require(name);
+      if (handle.type === "route") {
+        handle.watchers.clear();
+        handle.removeListener?.();
+        handle.removeListener = null;
+      }
+      if (handle.type === "clock") {
+        handle.watchers.clear();
+        if (handle.timer !== null) handle.clock.clearInterval(handle.timer);
+        handle.timer = null;
+      }
+      if (handle.type === "stream" && !handle.closed) {
+        handle.closed = true;
+        handle.ended = true;
+        handle.queue.length = 0;
+        handle.watchers.clear();
+        handle.adapter?.close?.();
+      }
+      if (handle.type === "event") {
+        for (const cleanup of handle.cleanups) cleanup();
+        handle.cleanups.clear();
+      }
+      if (handle.type === "ui") handle.renderer.dispose();
+      this.handles.delete(name);
+      this.observe({ kind: "io", action: "close", handle: name });
     }
     /** @param {string} name */
     validateUI(name) {
@@ -1336,10 +1833,16 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       const handle = this.require(name);
       if (handle.type !== "ui") return;
       handle.renderer.commit(tree, dispatch);
+      this.observe({ kind: "io", action: "commit", handle: name });
     }
     dispose() {
-      for (const remove of this.listeners.splice(0)) remove();
-      for (const handle of this.handles.values()) if (handle.type === "ui") handle.renderer.dispose();
+      this.rollbackEffects();
+      for (const [name] of [...this.handles]) if (name !== "STDOUT") this.close(name);
+      for (const { element } of this.styles.values()) {
+        if (typeof element.remove === "function") element.remove();
+        else element.parentNode?.removeChild(element);
+      }
+      this.styles.clear();
     }
   };
 
@@ -1348,6 +1851,31 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
   var generations = /* @__PURE__ */ new WeakMap();
   var nextGeneration = 0;
   var defaultErrorHandler = null;
+  var streamRegistrations = /* @__PURE__ */ new Map();
+  function currentStreamFactories() {
+    return new Map([...streamRegistrations].flatMap(([name, entries]) => {
+      const current = entries.at(-1);
+      return current ? [[name, current.factory]] : [];
+    }));
+  }
+  function registerStream(name, factory) {
+    if (!name || name.includes(":")) throw new TypeError("Stream name must be a non-empty name without colons");
+    if (typeof factory !== "function") throw new TypeError("Stream factory must be a function");
+    const entry = { factory };
+    const entries = streamRegistrations.get(name) || [];
+    entries.push(entry);
+    streamRegistrations.set(name, entries);
+    let registered = true;
+    return () => {
+      if (!registered) return;
+      registered = false;
+      const current = streamRegistrations.get(name);
+      if (!current) return;
+      const index = current.indexOf(entry);
+      if (index !== -1) current.splice(index, 1);
+      if (current.length === 0) streamRegistrations.delete(name);
+    };
+  }
   function setErrorHandler(handler) {
     if (handler !== null && typeof handler !== "function") throw new TypeError("Error handler must be a function or null");
     defaultErrorHandler = handler;
@@ -1363,7 +1891,7 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
     const document2 = options.document || globalThis.document;
     if (!document2) throw new Error("PerlScript.run requires a document");
     const onError = options.onError === void 0 ? defaultErrorHandler : options.onError;
-    const runtime = new Runtime({ io: options.io || new BrowserIO(document2), onError });
+    const runtime = new Runtime({ io: options.io || new BrowserIO(document2, { streams: currentStreamFactories() }), onError });
     try {
       runtime.run(source);
     } catch (error) {
@@ -1396,10 +1924,27 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
         throw error;
       }
       if (generations.get(script) !== generation) continue;
-      const runtime = run(source, { document: script.ownerDocument || root, onError: options.onError });
+      const document2 = script.ownerDocument || root;
+      const io = new BrowserIO(document2, { streams: currentStreamFactories() });
+      io.beginEffects();
+      let runtime;
+      try {
+        runtime = run(source, { document: document2, io, onError: options.onError });
+      } catch (error) {
+        io.rollbackEffects();
+        throw error;
+      }
       if (generations.get(script) !== generation) {
         runtime.dispose();
+        io.rollbackEffects();
         continue;
+      }
+      try {
+        io.commitEffects();
+      } catch (error) {
+        runtime.dispose();
+        report(error, options.onError === void 0 ? defaultErrorHandler : options.onError);
+        throw error;
       }
       const previous = active.get(script);
       active.set(script, runtime);
@@ -1412,6 +1957,163 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
     generations.set(script, ++nextGeneration);
     active.get(script)?.dispose();
     active.delete(script);
+  }
+
+  // src/web-adapters.js
+  var memoryStorage2 = () => {
+    const values = /* @__PURE__ */ new Map();
+    return {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, String(value)),
+      removeItem: (key) => values.delete(key)
+    };
+  };
+  function resolveStorage2(override) {
+    if (override) return override;
+    try {
+      return globalThis.localStorage || memoryStorage2();
+    } catch {
+      return memoryStorage2();
+    }
+  }
+  async function emitSSE(response, emit) {
+    if (!response.body) throw new Error("Streaming response body is unavailable.");
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    const dispatch = (block) => {
+      const data = block.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trimStart()).join("\n");
+      if (data && data !== "[DONE]") emit(data);
+    };
+    for (; ; ) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      let boundary = buffer.match(/\r?\n\r?\n/);
+      while (boundary && boundary.index !== void 0) {
+        dispatch(buffer.slice(0, boundary.index));
+        buffer = buffer.slice(boundary.index + boundary[0].length);
+        boundary = buffer.match(/\r?\n\r?\n/);
+      }
+      if (done) break;
+    }
+    if (buffer.trim()) dispatch(buffer);
+  }
+  function createWebAdapters(options = {}) {
+    const storage = resolveStorage2(options.storage);
+    const fetcher = options.fetch || globalThis.fetch?.bind(globalThis);
+    const secretPrefix = options.secretPrefix || "perlscript-web:secret:";
+    const secrets = /* @__PURE__ */ new Map();
+    const secretKey = (name) => `${secretPrefix}${name}`;
+    const readStored = (name) => {
+      try {
+        return String(storage.getItem(secretKey(name)) || "");
+      } catch {
+        return "";
+      }
+    };
+    const writeStored = (name, value) => {
+      try {
+        if (value) storage.setItem(secretKey(name), value);
+        else storage.removeItem(secretKey(name));
+      } catch {
+      }
+    };
+    const resolveSecret = (name) => {
+      const value = secrets.get(name) || readStored(name);
+      if (value) secrets.set(name, value);
+      return value;
+    };
+    const secret = ({ emit, end }) => ({
+      write(raw) {
+        try {
+          const command = JSON.parse(raw);
+          const name = String(command.name || "");
+          if (!name) throw new Error("Secret command requires a name.");
+          if (command.op === "set") {
+            const value = String(command.value || "");
+            if (!value) throw new Error("Secret value cannot be empty.");
+            secrets.set(name, value);
+            writeStored(name, command.persist ? value : "");
+          } else if (command.op === "persist") {
+            const value = resolveSecret(name);
+            writeStored(name, command.persist && value ? value : "");
+          } else if (command.op === "delete") {
+            secrets.delete(name);
+            writeStored(name, "");
+          } else if (command.op !== "status") {
+            throw new Error(`Unknown secret operation ${command.op || "(empty)"}.`);
+          }
+          emit(JSON.stringify({ type: "secret.result", op: command.op, name, configured: Boolean(resolveSecret(name)), persisted: Boolean(readStored(name)) }));
+        } catch (error) {
+          emit(JSON.stringify({ type: "secret.error", message: error instanceof Error ? error.message : String(error) }));
+        } finally {
+          end();
+        }
+      }
+    });
+    const http = ({ emit, end }) => {
+      let controller = null;
+      return {
+        write(raw) {
+          controller?.abort();
+          const current = new AbortController();
+          controller = current;
+          void (async () => {
+            if (!fetcher) throw new Error("Fetch is unavailable in this browser.");
+            const request = JSON.parse(raw);
+            if (!/^https:\/\//.test(request.url || "")) throw new Error("HTTP stream requires an HTTPS URL.");
+            const headers = new Headers(request.headers || {});
+            const credential = request.bearer || (request.credential ? resolveSecret(String(request.credential)) : "");
+            if (request.credential && !credential) {
+              emit(JSON.stringify({ type: "http.error", code: "credential_missing", message: `Credential ${request.credential} is not configured.` }));
+              return;
+            }
+            if (credential) headers.set("Authorization", `Bearer ${credential}`);
+            let body;
+            if (request.body !== void 0) {
+              body = typeof request.body === "string" ? request.body : JSON.stringify(request.body);
+              if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+            }
+            const response = await fetcher(request.url, { method: request.method || "GET", headers, body, signal: current.signal });
+            if (!response.ok) {
+              let message = `${response.status} ${response.statusText || ""}`.trim();
+              try {
+                message = (await response.json()).error?.message || message;
+              } catch {
+              }
+              emit(JSON.stringify({ type: "http.error", status: response.status, message }));
+              return;
+            }
+            if (request.stream === "sse") await emitSSE(response, emit);
+            else emit(JSON.stringify({ type: "http.response", status: response.status, body: await response.text() }));
+          })().catch((error) => {
+            if (error?.name !== "AbortError") emit(JSON.stringify({ type: "http.error", message: error instanceof Error ? error.message : String(error) }));
+          }).finally(() => {
+            if (controller === current) {
+              controller = null;
+              end();
+            }
+          });
+        },
+        close() {
+          controller?.abort();
+          controller = null;
+        }
+      };
+    };
+    return {
+      secret,
+      http
+    };
+  }
+  function installWebAdapters(options = {}) {
+    const adapters = createWebAdapters(options);
+    const unregisterSecret = registerStream("secret", adapters.secret);
+    const unregisterHTTP = registerStream("http", adapters.http);
+    return () => {
+      unregisterHTTP();
+      unregisterSecret();
+    };
   }
 
   // src/auto.js

@@ -110,7 +110,9 @@ UI remain active. The error is reported through the existing `onError` contract.
 Listener cleanup and later events continue to work.
 
 Top-level startup follows the existing runtime transaction: a failed candidate
-runtime is disposed, and a previous successfully running script is preserved.
+runtime is disposed, its staged `storage:` and `route:` writes are discarded,
+and a previous successfully running script is preserved. Irreversible host
+effects such as HTTP requests are outside this rollback boundary.
 
 ## Reconciliation
 

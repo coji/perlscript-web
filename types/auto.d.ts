@@ -1,1 +1,2 @@
-export { run, runScripts, disposeScript, setErrorHandler } from "./browser.js";
+export { run, runScripts, disposeScript, setErrorHandler, registerStream } from "./browser.js";
+export { installWebAdapters } from "./web-adapters.js";

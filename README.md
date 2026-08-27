@@ -67,12 +67,91 @@ do watch(ENTER, "post");
 
 `keydown` event handles fire only for Enter and ignore IME composition (`isComposing` and key code 229). Output is written with `textContent`, so user input is not interpreted as HTML.
 
+Host applications can also register asynchronous, bidirectional text streams without adding service-specific concepts to the Perl language:
+
+```js
+PerlScript.registerStream("echo", ({ emit, end }) => ({
+  write(value) { emit(value); end(); },
+}));
+```
+
+```perl
+sub receive {
+    if (eof(ECHO)) { print "done\n"; }
+    else { print <ECHO>; }
+}
+
+open ECHO, "stream:echo";
+do watch(ECHO, "receive");
+print ECHO "hello";
+```
+
+The adapter may be backed by `fetch`, SSE, WebSocket, a Web Worker, or any other host capability. `close(ECHO)` cancels and disposes it when the adapter supplies `close()`.
+
+The optional web adapters provide reusable `stream:http` and `stream:secret` handles. The Perl program describes an HTTPS request and names a credential; the host resolves the secret, adds authorization, performs `fetch`, and emits either an ordinary response or SSE records. Secret values are never returned to Perl.
+
+```js
+const uninstallWebAdapters = PerlScript.installWebAdapters();
+```
+
+This is the adapter used by the PerlGPT example. Call `uninstallWebAdapters()` when the surrounding application no longer needs the global stream registrations.
+
+Persistent browser values are ordinary files too. Reading returns the complete stored string; opening with `>` replaces it:
+
+```perl
+open HISTORY, "storage:local:perlgpt/chats";
+$json = <HISTORY>;
+@chats = decode_json($json) if $json ne "";
+
+open HISTORY, ">storage:local:perlgpt/chats";
+print HISTORY encode_json(@chats);
+```
+
+Use `storage:session:*` for tab-scoped state. The Perl program does not access browser storage objects directly.
+
+Routing uses the same I/O model. `route:hash` works on static hosting such as GitHub Pages, while `route:history` reads and writes the browser pathname. Writing navigates, reading returns the current route, and watching receives programmatic navigation plus Back/Forward changes. Routing logic remains ordinary Perl conditionals and regular expressions:
+
+```perl
+open ROUTE, "route:hash";
+do watch(ROUTE, "route_changed");
+
+sub route_changed {
+    $path = <ROUTE>;
+    if ($path =~ /^\/test\/read\.cgi\/([A-Za-z0-9_]+)\/([0-9]+)$/) {
+        $board = $1;
+        $thread = $2;
+    }
+}
+
+print ROUTE "/test/read.cgi/perl/1234567890";
+```
+
+Time is an input file too. The suffix is a tick interval in milliseconds; reading returns Unix time in seconds. Closing or disposing the runtime cancels its timer.
+
+```perl
+open CLOCK, "clock:60000";
+$now = <CLOCK>;
+do watch(CLOCK, "update_relative_times");
+```
+
+Stylesheets are output files as well. CSS stays CSS rather than becoming a Perl-specific object notation:
+
+```perl
+open STYLE, ">css:app";
+print STYLE '
+  .app { display: grid; }
+  .button { border-radius: 999px; }
+';
+```
+
+`>css:name` replaces the runtime-owned sheet and `>>css:name` appends to it. The sheet is removed when that runtime is disposed, so a successful rerun replaces the previous program's styles without accumulating `<style>` elements.
+
 `watch(HANDLE, "sub")`, `clear()`, and the PerlUI primitives are intentional browser extensions. Everything else follows the versioned [Perl 1 Web Profile 1.0](docs/PERL1-WEB-PROFILE.md).
 
 ## Supported subset
 
 - Scalars, list expressions, arrays, hashes, strings, numbers, assignment and interpolation
-- Array/hash indexing, `$#array`, `push`, `pop`, `shift`, `keys`, `values`
+- Array/hash indexing, `$#array`, `push`, `pop`, `shift`, `keys`, `values`, JSON bridge functions
 - Arithmetic, concatenation, string/numeric comparisons
 - Regular expressions and `=~` / `!~`
 - `if`, `unless`, statement modifiers, `while`, `return`
@@ -88,6 +167,8 @@ The IIFE bundle creates `window.PerlScript`:
 const runtime = PerlScript.run(source);
 await PerlScript.runScripts();
 PerlScript.setErrorHandler(error => console.error(error.message, error.excerpt));
+const snapshot = runtime.inspect();
+const unsubscribe = runtime.subscribe(event => console.log(event));
 runtime.dispose();
 ```
 
@@ -99,7 +180,9 @@ import { run, runScripts, setErrorHandler, Runtime, BrowserIO } from "perlscript
 const runtime = run(source);
 ```
 
-`runScripts()` executes inline and external (`src="./app.pl"`) `text/perl` scripts in document order. A successful rerun atomically replaces the previous runtime; a failed rerun leaves it active. `setErrorHandler()` receives structured top-level and event errors. Pass `null` to clear the handler, or use `{ onError }` to override it for one run.
+`runScripts()` executes inline and external (`src="./app.pl"`) `text/perl` scripts in document order. A successful rerun atomically replaces the previous runtime; a failed rerun leaves it active and discards staged `storage:` and `route:` writes. Irreversible host effects such as an HTTP request cannot be rolled back. `setErrorHandler()` receives structured top-level and event errors. Pass `null` to clear the handler, or use `{ onError }` to override it for one run.
+
+`inspect()` returns a read-only snapshot of Perl state, filehandles, mounts, render metrics, and recent runtime/I/O metadata. Scalar, array, and hash fields with secret-like names are redacted. `subscribe()` observes the same metadata without exposing values written to or read from filehandles; call its returned function to unsubscribe.
 
 The source modules also export `Lexer`, `Parser`, `Runtime`, `MemoryIO`, and `BrowserIO` for tests and embedding.
 

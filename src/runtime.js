@@ -13,6 +13,7 @@ const perlBoolean = value => value ? 1 : "";
 const num = value => Number(value) || 0;
 /** @param {*} value @returns {value is {type:symbol,value:*}} */
 const isReturnSignal = value => value?.type === RETURN;
+const SENSITIVE_NAME = /(?:api[_-]?key|secret|token|password|credential|authorization)/i;
 
 /** @param {never} value */
 function assertNever(value) { throw new Error("Unhandled AST node"); }
@@ -40,15 +41,70 @@ export class Runtime {
     this.dirty = false;
     /** @type {string[]} */
     this.callStack = [];
+    /** @type {Array<Record<string,*>>} */
+    this.events = [];
+    /** @type {Set<(event:Record<string,*>)=>void>} */
+    this.observers = new Set();
+    this.eventSequence = 0;
+    this.lastSub = "";
+    this.renderCount = 0;
+    this.transactionCount = 0;
+    this.io.setObserver(event => this.record(event));
+  }
+
+  /** @param {Record<string,*>} event */
+  record(event) {
+    const entry = { id: ++this.eventSequence, ...event };
+    this.events.push(entry);
+    if (this.events.length > 200) this.events.shift();
+    for (const observer of [...this.observers]) { try { observer(entry); } catch { /* Observers never affect the program. */ } }
+  }
+
+  /** @param {(event:Record<string,*>)=>void} observer @returns {()=>void} */
+  subscribe(observer) {
+    if (typeof observer !== "function") throw new TypeError("Runtime observer must be a function");
+    this.observers.add(observer);
+    return () => this.observers.delete(observer);
+  }
+
+  /** @returns {{scalars:Record<string,*>,arrays:Record<string,*[]>,hashes:Record<string,Record<string,*>>,handles:Array<{name:string,type:string}>,mounts:Array<{handle:string,view:string}>,lastSub:string,renderCount:number,transactionCount:number,events:Array<Record<string,*>>}} */
+  inspect() {
+    return {
+      scalars: this.inspectRecord(this.scalars),
+      arrays: this.inspectRecord(this.arrays),
+      hashes: this.inspectRecord(this.hashes),
+      handles: [...this.io.handles].map(([name, handle]) => ({ name, type: handle.type })),
+      mounts: [...this.mounts].map(([handle, view]) => ({ handle, view })),
+      lastSub: this.lastSub,
+      renderCount: this.renderCount,
+      transactionCount: this.transactionCount,
+      events: this.events.map(event => ({ ...event })),
+    };
+  }
+
+  /** @param {Record<string,*>} record @returns {Record<string,*>} */
+  inspectRecord(record) {
+    const copy = Object.create(null);
+    for (const [name, value] of Object.entries(record)) copy[name] = SENSITIVE_NAME.test(name) && value !== "" ? "[redacted]" : this.inspectValue(value);
+    return copy;
+  }
+
+  /** @param {*} value @returns {*} */
+  inspectValue(value) {
+    if (Array.isArray(value)) return value.map(item => this.inspectValue(item));
+    if (value && typeof value === "object") return this.inspectRecord(value);
+    return value;
   }
 
   /** @param {string} source @returns {Runtime} */
   run(source) { this.source = source.replace(/\r\n?/g, "\n"); return this.execute(parse(this.source)); }
   /** @param {import('./types.js').Program} program @returns {Runtime} */
   execute(program) {
+    this.record({ kind: "runtime", action: "start" });
     for (const statement of program.body) if (statement.type === "sub") this.subs.set(statement.name, statement);
     for (const statement of program.body) if (statement.type !== "sub") this.exec(statement);
     this.flushUI();
+    this.record({ kind: "runtime", action: "ready" });
     return this;
   }
 
@@ -148,7 +204,12 @@ export class Runtime {
       case "eq": return perlBoolean(String(left) === String(right)); case "ne": return perlBoolean(String(left) !== String(right));
       case "lt": return perlBoolean(String(left) < String(right)); case "le": return perlBoolean(String(left) <= String(right)); case "gt": return perlBoolean(String(left) > String(right)); case "ge": return perlBoolean(String(left) >= String(right));
       case "==": return perlBoolean(num(left) === num(right)); case "!=": return perlBoolean(num(left) !== num(right)); case "<": return perlBoolean(num(left) < num(right)); case "<=": return perlBoolean(num(left) <= num(right)); case ">": return perlBoolean(num(left) > num(right)); case ">=": return perlBoolean(num(left) >= num(right));
-      case "=~": case "!~": { const rx = right?.regex ? new RegExp(right.pattern, right.flags) : new RegExp(String(right)); const match = rx.test(String(left)); return perlBoolean(op === "=~" ? match : !match); }
+      case "=~": case "!~": {
+        const rx = right?.regex ? new RegExp(right.pattern, right.flags) : new RegExp(String(right));
+        const result = rx.exec(String(left));
+        if (result) for (let index = 1; index <= 9; index++) this.scalars[String(index)] = result[index] ?? "";
+        return perlBoolean(op === "=~" ? Boolean(result) : !result);
+      }
       default: throw new Error(`Unknown operator ${op}`);
     }
   }
@@ -160,7 +221,27 @@ export class Runtime {
     if (name === "shift") { const value = args[0].shift() ?? ""; this.markDirty(); return value; }
     if (name === "keys") return Object.keys(args[0]);
     if (name === "values") return Object.values(args[0]);
+    if (name === "encode_json") {
+      const value = JSON.stringify(args[0]);
+      return value === undefined ? "" : value;
+    }
+    if (name === "decode_json") return JSON.parse(this.stringify(args[0]));
+    if (name === "json_boolean") return Boolean(truthy(args[0]));
+    if (name === "json_get") {
+      let value = args[0];
+      for (const key of args.slice(1)) {
+        if (value === null || value === undefined || typeof value !== "object") return "";
+        value = value[this.stringify(key)];
+      }
+      return value ?? "";
+    }
     if (name === "clear") return this.io.clear();
+    if (name === "eof") return this.io.eof(args[0]);
+    if (name === "close") {
+      const handle = this.stringify(args[0]);
+      this.mounts.delete(handle);
+      return this.io.close(handle);
+    }
     if (name === "mount") return this.mount(args[0], args[1]);
     if (name === "begin") return this.requireUI(name).begin(args[0], args.slice(1));
     if (name === "text") return this.requireUI(name).text(args[0]);
@@ -176,7 +257,7 @@ export class Runtime {
     }
     if (name === "end") return this.requireUI(name).end();
     if (name === "watch") return this.io.watch(args[0], args[1], () => {
-      try { this.call(args[1], []); this.flushUI(); }
+      try { this.transaction(() => { this.call(args[1], []); }); }
       catch (error) {
         if (!this.onError) throw error;
         this.onError(error instanceof Error ? error : new Error(String(error)));
@@ -184,6 +265,8 @@ export class Runtime {
     });
     const sub = this.subs.get(name);
     if (!sub) throw new Error(`Undefined subroutine ${name}`);
+    this.lastSub = name;
+    this.record({ kind: "runtime", action: "call", sub: name, phase: this.rendering ? "render" : "action" });
     const previous = this.arrays._;
     this.arrays._ = args;
     this.callStack.push(name);
@@ -203,8 +286,12 @@ export class Runtime {
 
   /** @param {string} value @returns {string} */
   interpolate(value) {
+    const unsupportedCapture = value.match(/\$(\d[A-Za-z0-9_]*)/);
+    if (unsupportedCapture && !/^[1-9]$/.test(unsupportedCapture[1])) {
+      throw new Error(`Capture variables are limited to $1 through $9; got $${unsupportedCapture[1]}`);
+    }
     return value
-      .replace(/\$([A-Za-z_]\w*)/g, (_match, name) => this.stringify(this.scalars[name] ?? ""))
+      .replace(/\$([A-Za-z_]\w*|[1-9])/g, (_match, name) => this.stringify(this.scalars[name] ?? ""))
       .replaceAll(ESCAPED_DOLLAR, "$");
   }
   /** @param {import('./types.js').Expression} node @returns {*[]} */
@@ -241,6 +328,7 @@ export class Runtime {
     if (this.mounts.has(handle)) throw new Error(`UI handle ${handle} is already mounted`);
     this.mounts.set(handle, view);
     this.dirty = true;
+    this.record({ kind: "runtime", action: "mount", handle, sub: view });
     return "";
   }
 
@@ -281,6 +369,10 @@ export class Runtime {
       this.io.commitUI(handle, tree,
         (sub, args, updates) => this.dispatchUI(sub, args, updates));
     }
+    if (candidates.length) {
+      this.renderCount++;
+      this.record({ kind: "runtime", action: "render", mounts: candidates.length, count: this.renderCount });
+    }
   }
 
   /** @param {string|null} sub @param {*[]} args @param {Array<[string,*]>} updates */
@@ -302,12 +394,15 @@ export class Runtime {
   transaction(action) {
     const state = this.snapshot();
     const wasDirty = this.dirty;
-    try { action(); this.flushUI(); }
+    const transaction = ++this.transactionCount;
+    this.record({ kind: "runtime", action: "transaction", phase: "start", transaction });
+    try { action(); this.flushUI(); this.record({ kind: "runtime", action: "transaction", phase: "commit", transaction }); }
     catch (error) {
       this.restore(state);
       this.dirty = this.mounts.size > 0;
       try { this.flushUI(); } catch { /* Keep the original action error. */ }
       this.dirty = wasDirty;
+      this.record({ kind: "runtime", action: "transaction", phase: "rollback", transaction });
       throw error;
     }
   }
@@ -333,5 +428,5 @@ export class Runtime {
     return value;
   }
 
-  dispose() { this.io.dispose(); }
+  dispose() { this.record({ kind: "runtime", action: "dispose" }); this.io.dispose(); this.observers.clear(); }
 }

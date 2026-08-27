@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("the Pages landing runs the live Counter and opens the command palette", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Perl is the UI." })).toBeVisible();
   const demo = page.frameLocator("iframe[title='Live PerlUI Counter demo']");
   await expect(demo.getByRole("button", { name: "Source" })).toBeVisible();
@@ -19,7 +19,7 @@ test("the Pages landing runs the live Counter and opens the command palette", as
 for (const width of [320, 375, 414, 768]) {
   test(`the Pages landing has no horizontal overflow at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
     const dimensions = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
       content: document.documentElement.scrollWidth,
