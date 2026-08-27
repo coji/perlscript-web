@@ -12,6 +12,7 @@ test("the Pages landing runs the live Counter and opens the command palette", as
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("link", { name: "Run the BBS" })).toBeVisible();
+  await expect(dialog.getByRole("link", { name: "Enter the 2ch archive" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toBeHidden();
 });

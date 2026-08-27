@@ -1,5 +1,14 @@
 [
   {
+    "date": "2026-08-27",
+    "macrostructure": "Long Document",
+    "theme": "custom",
+    "theme_axes": "light / system-native / cool",
+    "vibe": "2002 archive, plain, dense, useful",
+    "enrichment": "none",
+    "brief": "PerlUI 2ch Web Programming archive demo"
+  },
+  {
     "date": "2026-08-26",
     "macrostructure": "Workbench",
     "theme": "Cobalt",
