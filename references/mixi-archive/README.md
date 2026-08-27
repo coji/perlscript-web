@@ -2,7 +2,8 @@
 
 Local-only screenshots used to study the visual and interaction structure of
 the 2004 mixi beta interface. Images are ignored by Git; only this provenance
-record is committed. The demo uses fictional people and posts and does not
+record is committed. The demo combines fictional users with clearly labeled,
+generated reenactments of public figures; every post is fictional. It does not
 redistribute screenshot content.
 
 ## User home
@@ -30,15 +31,34 @@ chronological visitor list used by the footprints route.
 
 ## Logged-out meadow
 
+The exact original public page is now available under the ignored
+`raw/wayback-2004-03-21/` directory. It contains the archived HTML, CSS, and
+all referenced image assets from the 2004-03-21 Wayback capture. The page is a
+720 px image-sliced composition whose lower-right pieces contain the grass and
+two women. The same composition remains in the collected 2005-01-01 HTML.
+
+- 2004 capture:
+  `https://web.archive.org/web/20040321040003/http://mixi.jp/`
+- 2005 capture:
+  `https://web.archive.org/web/20050101043207/http://mixi.jp/`
+
+The following later reproduction remains as a secondary visual reference:
+
 - Published: 2021-12-23 (article reproducing the earlier login screen)
 - Source article: `https://prebell.so-net.ne.jp/feature/pre_21122301.html`
 - Image: `https://prebell.so-net.ne.jp/content/so_net/prebell/feature/pre_21122301/_jcr_content/mainparsys/image_copy_copy_copy.img.jpg/1640067147554.jpg`
 - Local file: `login-grass-reference.jpg`
 - SHA-256: `984b99906a057b8f2214146f4e2f2a1e906c3cae586754c6cb91d643776a8d97`
 
-The screenshot establishes the low grassy ridge, broad blue sky, compact
-login panel, and restrained pre-login navigation. The shipped meadow is a new
-AI-generated image; the screenshot itself remains ignored by Git.
+The references establish the low grassy ridge, broad blue sky, compact login
+panel, and restrained pre-login navigation. The shipped meadow is a new
+AI-generated image; source screenshots and archived assets remain ignored by
+Git.
+
+## Reconstruction ledger
+
+See `RESEARCH.md` for the screen inventory, exact geometry, CSS colors,
+typography, confidence levels, and remaining evidence gaps.
 
 ## Real-person identity references
 

@@ -21,7 +21,7 @@ test("opens on the meadow login and enters the 2005 network", async ({ page }) =
 });
 
 test("tours the 2005 home, profiles, footprints, messages, and communities", async ({ page }) => {
-  await expect(page.getByRole("link", { name: "mixi ホーム" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "mixiβ version" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "最新情報" })).toBeVisible();
   await expect(page.getByText("マイミクシィ最新日記")).toBeVisible();
   await expect(page.getByText("Dan Kogai", { exact: true })).toBeVisible();
@@ -32,6 +32,13 @@ test("tours the 2005 home, profiles, footprints, messages, and communities", asy
   await page.getByRole("link", { name: /Dan Kogaiのプロフィール画像 Dan Kogai/ }).click();
   await expect(page.getByRole("heading", { name: "Dan Kogaiのプロフィール" })).toBeVisible();
   await expect(page.getByText(/写真は公開プロフィールを参考にしたAIによる2005年当時の再現/)).toBeVisible();
+  await page.getByRole("link", { name: "日記をすべて読む" }).click();
+  await expect(page.locator(".left-rail")).toContainText("最近のコメント");
+  await expect(page.locator(".left-rail")).toContainText("各月の日記");
+  await expect(page.locator(".left-rail .profile-mini")).toHaveCount(0);
+  await page.locator(".main-column").getByRole("link", { name: "use Encode;", exact: true }).click();
+  await expect(page.locator(".left-rail")).toContainText("use Encode;");
+  await expect(page.locator(".left-rail .profile-mini")).toHaveCount(0);
   await page.getByRole("link", { name: "ホーム", exact: true }).click();
 
   await page.getByRole("link", { name: /シフトさんのプロフィール画像 シフトさん/ }).click();
@@ -50,12 +57,13 @@ test("tours the 2005 home, profiles, footprints, messages, and communities", asy
 
   await page.getByRole("link", { name: "コミュニティ", exact: true }).click();
   await page.getByRole("link", { name: "Perl Mongers Japan" }).click();
-  await expect(page.getByRole("heading", { name: "Perl Mongers Japan" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "コミュニティ" })).toBeVisible();
+  await expect(page.getByText("Perl Mongers Japan", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("ブラウザでPerlを動かす会")).toBeVisible();
 });
 
 test("writes a diary, comments on it, and persists both", async ({ page }) => {
-  await page.getByRole("link", { name: "日記", exact: true }).click();
+  await page.getByRole("link", { name: "新着日記", exact: true }).click();
   await page.getByRole("link", { name: "日記を書く" }).click();
   await page.getByLabel("タイトル").fill("Perlで書いた日記");
   await page.getByLabel("本文").fill("routeもstorageも普通のfilehandleだった。");
