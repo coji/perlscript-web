@@ -31,9 +31,16 @@
  * @typedef {{ type:'program', body:Statement[], range:SourceRange }} Program
  * @typedef {{ type:'memory', value:string, spec?:* }} MemoryHandle
  * @typedef {{ type:'dom-in'|'dom-out', element:Element }} DomHandle
- * @typedef {{ type:'event', element:Element, event:string }} EventHandle
+ * @typedef {{ type:'event', element:Element, event:string, cleanups:Set<()=>void> }} EventHandle
  * @typedef {{ type:'ui', element:Element, renderer:import('./ui.js').DOMUIRenderer }} UIHandle
- * @typedef {MemoryHandle|DomHandle|EventHandle|UIHandle} FileHandle
+ * @typedef {{ type:'stream', name:string, adapter:{write:(value:string)=>*,close?:()=>void}, queue:string[], watchers:Set<Function>, ended:boolean, closed:boolean }} StreamHandle
+ * @typedef {{getItem:(key:string)=>string|null,setItem:(key:string,value:string)=>*,removeItem:(key:string)=>*}} StorageArea
+ * @typedef {{ type:'storage', area:StorageArea, key:string, writable:boolean, value:string }} StorageHandle
+ * @typedef {{ element:HTMLStyleElement, value:string }} CSSSheet
+ * @typedef {{ type:'css', sheet:CSSSheet }} CSSHandle
+ * @typedef {{ type:'route', mode:'hash'|'history', navigation:*, value:string, watchers:Set<Function>, removeListener:(()=>void)|null }} RouteHandle
+ * @typedef {{ type:'clock', interval:number, clock:{now:()=>number,setInterval:(callback:Function,interval:number)=>*,clearInterval:(timer:*)=>void}, watchers:Set<Function>, timer:* }} ClockHandle
+ * @typedef {MemoryHandle|DomHandle|EventHandle|UIHandle|StreamHandle|StorageHandle|CSSHandle|RouteHandle|ClockHandle} FileHandle
  */
 export type SourcePosition = {
     offset: number;
@@ -213,11 +220,63 @@ export type EventHandle = {
     type: 'event';
     element: Element;
     event: string;
+    cleanups: Set<() => void>;
 };
 export type UIHandle = {
     type: 'ui';
     element: Element;
     renderer: import('./ui.js').DOMUIRenderer;
 };
-export type FileHandle = MemoryHandle | DomHandle | EventHandle | UIHandle;
+export type StreamHandle = {
+    type: 'stream';
+    name: string;
+    adapter: {
+        write: (value: string) => any;
+        close?: () => void;
+    };
+    queue: string[];
+    watchers: Set<Function>;
+    ended: boolean;
+    closed: boolean;
+};
+export type StorageArea = {
+    getItem: (key: string) => string | null;
+    setItem: (key: string, value: string) => any;
+    removeItem: (key: string) => any;
+};
+export type StorageHandle = {
+    type: 'storage';
+    area: StorageArea;
+    key: string;
+    writable: boolean;
+    value: string;
+};
+export type CSSSheet = {
+    element: HTMLStyleElement;
+    value: string;
+};
+export type CSSHandle = {
+    type: 'css';
+    sheet: CSSSheet;
+};
+export type RouteHandle = {
+    type: 'route';
+    mode: 'hash' | 'history';
+    navigation: any;
+    value: string;
+    watchers: Set<Function>;
+    removeListener: (() => void) | null;
+};
+export type ClockHandle = {
+    type: 'clock';
+    interval: number;
+    clock: {
+        now: () => number;
+        setInterval: (callback: Function, interval: number) => any;
+        clearInterval: (timer: any) => void;
+    };
+    watchers: Set<Function>;
+    timer: any;
+};
+export type FileHandle = MemoryHandle | DomHandle | EventHandle | UIHandle | StreamHandle | StorageHandle | CSSHandle | RouteHandle | ClockHandle;
 export {};

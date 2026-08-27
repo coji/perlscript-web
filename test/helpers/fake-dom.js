@@ -88,7 +88,9 @@ export function createFakeDocument(selectors = {}) {
   const requestedSelectors = [];
   const createdElements = [];
   const scripts = [];
+  const head = new FakeElement("", "head");
   const document = {
+    head,
     readyState: "complete",
     querySelector(selector) {
       requestedSelectors.push(selector);

@@ -1,4 +1,17 @@
 import { Runtime } from "./runtime.js";
+/**
+ * Register a host-owned asynchronous text stream for `open HANDLE, "stream:name"`.
+ * @param {string} name
+ * @param {(sink:{emit:(value:*)=>void,end:()=>void})=>{write:(value:string)=>*,close?:()=>void}} factory
+ * @returns {()=>void}
+ */
+export declare function registerStream(name: string, factory: (sink: {
+    emit: (value: any) => void;
+    end: () => void;
+}) => {
+    write: (value: string) => any;
+    close?: () => void;
+}): () => void;
 /** @param {((error:Error)=>void)|null} handler */
 export declare function setErrorHandler(handler: ((error: Error) => void) | null): void;
 /** @returns {boolean} */

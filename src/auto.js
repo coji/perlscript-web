@@ -1,6 +1,7 @@
 import { hasErrorHandler, runScripts } from "./browser.js";
 
-export { run, runScripts, disposeScript, setErrorHandler } from "./browser.js";
+export { run, runScripts, disposeScript, setErrorHandler, registerStream } from "./browser.js";
+export { installWebAdapters } from "./web-adapters.js";
 
 if (typeof document !== "undefined") {
   const start = () => runScripts().catch(error => {

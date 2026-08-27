@@ -2,6 +2,21 @@
 
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+- Host-registered `stream:` filehandles with asynchronous reads, writes, EOF notifications, cancellation, and the `registerStream` browser API.
+- Persistent `storage:local:*` and tab-scoped `storage:session:*` filehandles with Perl-style `>` replacement writes.
+- JSON bridge built-ins for constructing and consuming structured text protocols through ordinary filehandles.
+- A BYOK PerlGPT demo whose Perl program owns the request, settings, conversation state, and streamed Responses API events while JavaScript supplies generic HTTP, storage, and secret adapters.
+- Optional generic `stream:http` and `stream:secret` web adapters with SSE delivery, host-side credential resolution, and cancellable requests.
+- Redacted runtime snapshots and metadata-only observation through `runtime.inspect()` and `runtime.subscribe()`.
+- A PerlGPT source outline and live Runtime Inspector for state, filehandles, component calls, renders, transactions, and I/O activity.
+- Hash and History routers through bidirectional `route:` filehandles, including Back/Forward observation and same-origin route validation.
+- Read-only, watchable `clock:` filehandles with runtime-owned timer disposal.
+- Regular-expression capture variables `$1` through `$9` for Perl-native route parameters.
+
 ## [1.0.0] - 2026-08-26
 
 ### Added
@@ -18,6 +33,7 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Perl 1 Web Profile 1.0 with scalars, lists, arrays, hashes, subroutines, dynamic `@_`, control flow, regex matching, and structured diagnostics.
 - Browser filehandles for DOM input, safe text output, and event streams.
 - Transactional script reruns, listener disposal, overlapping-load protection, and configurable error handling.
+- Transactional watched callbacks, staged storage/route writes during reruns, handle-owned listener cleanup, shared route notifications, restoration-safe stream registration, and consistent rejection of capture variables beyond `$9`.
 - Editable BBS and hello examples.
 - Generated TypeScript declarations and Chromium, Firefox, and WebKit end-to-end coverage.
 

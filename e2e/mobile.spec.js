@@ -6,6 +6,7 @@ const pages = [
   "/examples/bbs.html",
   "/examples/todo.html",
   "/examples/hello.html",
+  "/examples/perlgpt.html",
 ];
 
 for (const width of [320, 375, 414, 768]) {
@@ -13,7 +14,7 @@ for (const width of [320, 375, 414, 768]) {
     await page.setViewportSize({ width, height: 900 });
 
     for (const path of pages) {
-      await page.goto(path);
+      await page.goto(path, { waitUntil: "domcontentloaded" });
       const layout = await page.evaluate(() => ({
         viewport: document.documentElement.clientWidth,
         content: document.documentElement.scrollWidth,
@@ -22,10 +23,11 @@ for (const width of [320, 375, 414, 768]) {
       expect(layout.content, `${path} overflows at ${width}px`).toBeLessThanOrEqual(layout.viewport);
       expect(layout.overflow, `${path} does not clip root overflow`).toBe("clip");
 
-      const wrappedAffordances = await page.locator("a:visible, button:visible").evaluateAll(elements => elements
+      await expect.poll(() => page.locator("a:visible, button:visible").evaluateAll(elements => elements
         .filter(element => getComputedStyle(element).whiteSpace !== "nowrap")
-        .map(element => element.textContent?.trim()));
-      expect(wrappedAffordances, `${path} has wrapping affordances`).toEqual([]);
+        .map(element => element.textContent?.trim())), {
+        message: `${path} has wrapping affordances`,
+      }).toEqual([]);
     }
   });
 }
@@ -33,7 +35,7 @@ for (const width of [320, 375, 414, 768]) {
 test("mobile workbenches expose the useful pane and switch without scrolling through both", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
 
-  await page.goto("/examples/counter.html");
+  await page.goto("/examples/counter.html", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "Preview" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Count: 0" })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Perl source" })).toBeHidden();
@@ -41,7 +43,7 @@ test("mobile workbenches expose the useful pane and switch without scrolling thr
   await expect(page.getByRole("textbox", { name: "Perl source" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Count: 0" })).toBeHidden();
 
-  await page.goto("/examples/bbs.html");
+  await page.goto("/examples/bbs.html", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "Source" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("textbox", { name: "Perl source" })).toBeVisible();
   await page.getByRole("button", { name: "Run Perl" }).click();

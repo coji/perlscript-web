@@ -74,8 +74,14 @@ Binary operators at the same level associate left. Assignment associates right.
 - `shift(@array)`
 - `keys(%hash)`
 - `values(%hash)`
+- `encode_json(value)` — serializes a scalar or aggregate for a text I/O protocol
+- `decode_json(string)` — parses JSON into scalars, arrays, and hashes
+- `json_boolean(value)` — returns a JSON-safe boolean using Perl truth rules
+- `json_get(value, key, ...)` — reads a nested decoded value and returns `""` when absent
 - `clear()` — browser extension; clears the selected output filehandle
 - `watch(HANDLE, "sub")` — browser extension; invokes the named subroutine for events
+- `eof(HANDLE)` — reports whether a stream has ended and its read queue is empty
+- `close(HANDLE)` — closes a filehandle and cancels a host stream when applicable
 
 PerlUI adds `mount`, `begin`, `text`, `on`, `key`, `bind`, and `end` as browser
 extensions without changing this grammar. Their normative behaviour is defined
@@ -88,8 +94,9 @@ User subroutine arguments are available as `@_` and through `$_[index]`, for exa
 - Match and negative match use `=~` and `!~` with `/pattern/flags`.
 - Supported flags are `gimsuy`, matching JavaScript `RegExp` support.
 - Simple scalar interpolation is applied to the pattern at evaluation time.
+- A successful match writes capture groups to `$1` through `$9`. Unmatched groups become `""`.
 - Invalid dynamic patterns produce a structured runtime error. Browser runtimes with an error handler report the error without removing event listeners.
-- Substitution, transliteration, captures, and Perl-specific regex constructs are outside Profile 1.0.
+- Substitution, transliteration, named captures, and Perl-specific regex constructs are outside Profile 1.0.
 
 ## Browser filehandles
 
@@ -98,6 +105,16 @@ dom:<css-selector>                 readable element value/text
 >dom:<css-selector>                writable text output
 event:<event-name>:<css-selector>  event source
 >ui:<css-selector>                structured PerlUI mount
+stream:<registered-name>          host-provided asynchronous text stream
+route:hash                        URL hash route, readable/writable/watchable
+route:history                     pathname route, readable/writable/watchable
+clock:<milliseconds>              Unix-seconds clock, readable/watchable
+storage:local:<key>               readable persistent browser value
+>storage:local:<key>              replace a persistent browser value
+storage:session:<key>             readable tab-session browser value
+>storage:session:<key>            replace a tab-session browser value
+>css:<name>                       replace a runtime-owned stylesheet
+>>css:<name>                      append to a runtime-owned stylesheet
 ```
 
 - CSS selectors are passed unchanged to `querySelector`; only the first match is used.
@@ -107,7 +124,14 @@ event:<event-name>:<css-selector>  event source
 - `clear()` clears the currently selected DOM or memory output.
 - `keydown` event handles fire only for Enter and ignore IME composition (`isComposing` and key code 229).
 - Other event handles fire for every event of their declared type.
-- A runtime owns its listeners and removes them on `dispose()`.
+- Stream handles are bidirectional. `print HANDLE` sends text to the registered host adapter; `<HANDLE>` reads the next emitted text chunk.
+- Route handles are bidirectional. Reading returns a route beginning with `/`; writing a same-origin route navigates and invokes watchers. `route:hash` reacts to `hashchange`, and `route:history` reacts to `popstate`. Absolute, protocol-relative, empty, and newline-containing routes are rejected.
+- Clock handles are read-only. Reading returns Unix time in whole seconds. `watch` invokes the named subroutine at the declared interval, from 16 milliseconds through 24 hours.
+- Storage handles expose named `localStorage` or `sessionStorage` values as files. A readable handle returns the complete stored string. Opening with `>` truncates the value; subsequent prints append in order to the replacement value. `clear()` removes the selected storage value.
+- CSS handles write text to a runtime-owned `<style data-perlscript-css="name">`. Opening with `>` truncates the sheet; `>>` preserves it and appends. Disposing the runtime removes its sheets.
+- `watch` invokes the named subroutine for DOM events, route changes, clock ticks, each stream chunk, and once when a stream ends. `eof(HANDLE)` distinguishes the stream end notification from data.
+- `close(HANDLE)` disposes the host adapter and every listener owned by that handle. Reopening the same handle disposes its previous adapter first.
+- A runtime owns its listeners and stylesheets and removes them on `dispose()`.
 
 ## Browser API
 
@@ -115,8 +139,9 @@ event:<event-name>:<css-selector>  event source
 - `runScripts(document?, options?)` loads inline and external `script[type="text/perl"]` elements in document order.
 - `disposeScript(script)` cancels pending work and removes the active runtime for one script.
 - `setErrorHandler(handler)` sets the default handler for top-level browser and event errors; pass `null` to clear it.
+- `registerStream(name, factory)` registers a host-owned stream adapter and returns an unregister function. Registrations are layered; unregistering the current adapter restores the previous registration for that name.
 - `options.onError` overrides the default handler for one run.
-- Re-execution is transactional: a failed replacement leaves the last good runtime active.
+- Re-execution is transactional: a failed replacement leaves the last good runtime active and discards staged `storage:` and `route:` writes. Irreversible host effects such as HTTP requests are outside this rollback boundary.
 - Overlapping external loads are generation-guarded; only the newest requested runtime becomes active.
 
 Errors are `PerlScriptSyntaxError` or `PerlScriptRuntimeError` with `range`, `excerpt`, line/column in the message, and `cause` where applicable.
@@ -134,7 +159,7 @@ Errors are `PerlScriptSyntaxError` or `PerlScriptRuntimeError` with `range`, `ex
 - `eval`, formats, system calls, signals, and file-test operators
 - `for`/`foreach`, `last`, `next`, and `redo`
 - `local` beyond dynamic `@_`
-- Regex substitution/transliteration and capture variables
+- Regex substitution/transliteration, named captures, and capture variables beyond `$1` through `$9`
 - Perl context-sensitive scalar/list coercion beyond the operations defined here
 - Direct DOM objects or browser event objects in Perl
 

@@ -22,10 +22,13 @@ The normative contract is [Perl 1 Web Profile 1.0](./PERL1-WEB-PROFILE.md). The 
 | Scalars, arrays, hashes | Compatible profile | Bounded to documented literal, indexing, and assignment rules. |
 | Perl truth values | Compatible profile | True is `1`; false is empty string; string `"0"` is false. |
 | Subroutines and `@_` | Compatible profile | Globals plus dynamically scoped `@_`; no general `local`. |
-| Regex matching | Adapted | JavaScript RegExp engine and flags; no substitution/captures. |
+| Regex matching | Adapted | JavaScript RegExp engine and flags; `$1`–`$9` captures, no substitution. |
 | `open`, `select`, `print`, `<HANDLE>` | Adapted | Backed by memory or DOM filehandles. |
 | `watch`, `clear` | Browser extension | Explicitly non-historical. |
 | `ui:` and PerlUI built-ins | Browser extension | Structured reactive UI; no grammar additions. |
+| `css:` filehandles | Browser extension | Runtime-owned stylesheets written as ordinary text output. |
+| `route:` filehandles | Browser extension | Hash or History routing through readable, writable, watchable I/O. |
+| `clock:` filehandles | Browser extension | Unix time input with disposable interval events. |
 | DOM/event objects | Unsupported | Never exposed to Perl source. |
 | Filesystem/process APIs | Unsupported | Browser-only runtime. |
 
