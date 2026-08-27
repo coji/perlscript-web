@@ -31,7 +31,7 @@ State is an ordinary Perl scalar. Views and handlers are named subroutines. Chan
 
 This is not a revival of ActiveState PerlScript and not a Perl-flavoured React port. It is a browser-only interpreter, structured UI runtime, and I/O bridge, installable from npm and usable from a CDN.
 
-Try the live [perlscript-web workbench](https://coji.github.io/perlscript-web/) or open the [editable BBS directly](https://coji.github.io/perlscript-web/examples/bbs.html).
+Try the live [perlscript-web workbench](https://coji.github.io/perlscript-web/), visit the [2002-style Web Programming board](https://coji.github.io/perlscript-web/examples/2ch.html#/php/), or open the [editable BBS directly](https://coji.github.io/perlscript-web/examples/bbs.html).
 
 ## PerlUI
 
@@ -46,7 +46,7 @@ PerlUI turns ordinary calls into a validated UI instruction tree:
 
 Assignments and array mutations are batched until the current top-level action finishes. Event and render failures restore the previous Perl state and last good UI. Nested subroutines are components and errors include their UI call stack.
 
-See the normative [PerlUI 1.0 Profile](docs/PERLUI-1.0.md), the standalone [Counter](examples/counter.html) and [Todo](examples/todo.html), and the editable [Guestbook](examples/bbs.html).
+See the normative [PerlUI 1.0 Profile](docs/PERLUI-1.0.md), the standalone [Counter](examples/counter.html) and [Todo](examples/todo.html), the editable [Guestbook](examples/bbs.html), and the persistent, routed [2ch archive demo](examples/2ch.html#/php/).
 
 ## Low-level browser filehandles
 

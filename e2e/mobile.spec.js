@@ -7,6 +7,7 @@ const pages = [
   "/examples/todo.html",
   "/examples/hello.html",
   "/examples/perlgpt.html",
+  "/examples/2ch.html",
 ];
 
 for (const width of [320, 375, 414, 768]) {

@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WEBプログラミング＠PerlUI掲示板</title>
+<style>
+/* Hallmark · macrostructure: Long Document · theme: custom archive-DNA · enrichment: none · nav: archive links · footer: colophon
+ * vibe: "2002 archive, plain, dense, useful" · paper: oklch(97% 0.012 300) · accent: oklch(49% 0.20 265)
+ * display: browser serif · body: browser serif · axes: light / system-native / cool · studied: yes · context: archive · v0.8.0
+ */
+/* Hallmark · pre-emit critique: P5 H4 E5 S5 R5 V5 */
+[hidden]{display:none!important}*{box-sizing:border-box}html,body{margin:0;overflow-x:clip}body{min-height:100dvh;background:oklch(97% .012 300);color:oklch(18% .01 275);font:16px/1.5 serif}.boot{padding:2rem;text-align:center}.source-toggle{position:fixed;z-index:200;inset-block-end:max(.75rem,env(safe-area-inset-bottom));inset-inline-end:max(.75rem,env(safe-area-inset-right));min-width:44px;min-height:44px;border:1px outset oklch(75% .015 275);background:oklch(94% .018 145);color:oklch(24% .01 275);padding:.45rem .7rem;font:700 14px/1 sans-serif;white-space:nowrap;cursor:pointer}.source-dialog{position:fixed;inset:0;margin:0 0 0 auto;width:min(46rem,100%);height:100dvh;max-height:none;border:0;border-inline-start:1px solid oklch(38% .02 275);background:oklch(15% .015 275);color:oklch(94% .01 275);padding:0}.source-dialog::backdrop{background:oklch(12% .01 275/.48)}.source-head{position:sticky;inset-block-start:0;display:flex;align-items:center;justify-content:space-between;gap:1rem;background:oklch(19% .018 275);padding:.75rem 1rem}.source-head strong{font:700 14px/1.4 ui-monospace,monospace}.source-actions{display:flex;gap:.5rem}.source-actions button{min-height:44px;border:1px solid oklch(48% .02 275);background:oklch(24% .02 275);color:oklch(94% .01 275);padding:.5rem .8rem;font-weight:700;white-space:nowrap;cursor:pointer}.source-actions .run{background:oklch(54% .19 290);border-color:oklch(67% .19 290)}.source-status{padding:.5rem 1rem;color:oklch(78% .08 145);font:12px/1.4 ui-monospace,monospace}.source-error{margin:0 1rem .75rem;border:1px solid oklch(63% .2 25);padding:.65rem;white-space:pre-wrap;color:oklch(82% .12 25);font:12px/1.45 ui-monospace,monospace}.source-editor{display:block;width:calc(100% - 2rem);min-height:calc(100dvh - 8rem);margin:0 1rem 1rem;resize:vertical;border:1px solid oklch(38% .02 275);outline:2px solid transparent;outline-offset:1px;background:oklch(12% .012 275);color:oklch(92% .01 275);padding:1rem;font:14px/1.6 ui-monospace,SFMono-Regular,monospace;tab-size:4}.source-editor:focus-visible,.source-toggle:focus-visible,.source-actions button:focus-visible{outline:3px solid oklch(72% .2 240);outline-offset:2px}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:150ms!important;transition-duration:150ms!important}}
+</style>
+<body>
+<div id="app-root"><p class="boot">Perl 1.0-shaped program is starting…</p></div>
+<button class="source-toggle" id="open-source" type="button">Perlソース</button>
+<dialog class="source-dialog" id="source-dialog" aria-labelledby="source-title">
+  <div class="source-head"><strong id="source-title">2ch.pl — UI / route / storage / clock</strong><div class="source-actions"><button id="close-source" type="button">閉じる</button><button class="run" id="run" type="button">Run Perl</button></div></div>
+  <div class="source-status" id="run-status" role="status" aria-live="polite">Run 1 complete</div>
+  <pre class="source-error" id="error" role="alert" hidden></pre>
+  <textarea class="source-editor" id="source" aria-label="Perl source" spellcheck="false"></textarea>
+</dialog>
+<script src="../dist/perlscript-web.js"></script>
+<script id="app" type="text/plain" data-perlscript>
+$route = "/";
+$now = 0;
+$last_visit = 0;
+$name = "";
+$mail = "";
+$message = "";
+$subject = "";
+$current_thread = "";
+@threads = ();
+
+sub seed_threads {
+    %post1 = ("name", "名無しさん", "mail", "", "date", "2002/04/08 13:59", "body", "ブラウザでPerlが動く時代が来たら、画面もprintで書くのかな。");
+    %post2 = ("name", "Perl使い", "mail", "sage", "date", "2002/04/08 14:03", "body", "DOMより先にfilehandleとして見えそう。");
+    %post3 = ("name", "nobodyさん", "mail", "", "date", "2002/04/08 14:11", "body", "クリックも入力もファイルとしてopenできたら、Perl側はブラウザを知らなくて済むな。");
+    %post4 = ("name", "昔のPerl使い", "mail", "sage", "date", "2002/04/08 14:18", "body", "画面を文字列でprintするだけだとフォームのカーソルが飛びそう。要素の同一性はどうするんだろう。");
+    %post5 = ("name", "1", "mail", "", "date", "2002/04/08 14:26", "body", "key()みたいな目印を付けて、同じ行だけ再利用すればいけるかも。");
+    %post6 = ("name", "名無しさん", "mail", "", "date", "2002/04/08 14:41", "body", "1987年の文法のまま、実行環境だけ2026年にするということか。");
+    @posts1 = (%post1, %post2, %post3, %post4, %post5, %post6);
+    %thread1 = ("board", "php", "id", "1018267179", "title", "ブラウザでPerlを動かすスレ", "posts", @posts1);
+
+    %regex1 = ("name", "正規表現好き", "mail", "", "date", "2002/04/08 15:20", "body", "URLのルーティングも正規表現で十分だろ。");
+    %regex2 = ("name", "名無しさん", "mail", "sage", "date", "2002/04/08 15:24", "body", '^/test/read.cgi/php/([0-9]+)/?$ でスレ番号を$1に取ればよさそう。');
+    %regex3 = ("name", "2", "mail", "", "date", "2002/04/08 15:31", "body", "末尾のスラッシュを忘れて一時間はまった。任意にしておくのが吉。");
+    %regex4 = ("name", "正規表現好き", "mail", "", "date", "2002/04/08 15:47", "body", "route:hashをwatchして、マッチしたら表示するスレッドを変える。CGIのPATH_INFOに近い。");
+    %regex5 = ("name", "名無しさん", "mail", "", "date", "2002/04/08 16:02", "body", "ブラウザの戻るボタンまでwatchで拾えるならrouterとして十分だな。");
+    @posts2 = (%regex1, %regex2, %regex3, %regex4, %regex5);
+    %thread2 = ("board", "php", "id", "1018275620", "title", "正規表現道場＠Webプログラミング", "posts", @posts2);
+
+    %site1 = ("name", "昔の人", "mail", "", "date", "2002/04/08 16:44", "body", "KENT式掲示板の次は何を作る？");
+    %site2 = ("name", "名無しさん", "mail", "", "date", "2002/04/08 16:51", "body", "日記。リンク集。アクセスカウンタ。まずはその三つ。");
+    %site3 = ("name", "モジュール派", "mail", "sage", "date", "2002/04/08 17:06", "body", "掲示板のログをファイル保存にしておけば、サーバを替えても持っていけるのが良い。");
+    %site4 = ("name", "昔の人", "mail", "", "date", "2002/04/08 17:19", "body", "そのうち日記にコメントが付いて、友達だけに見せるページも流行りそうだな。");
+    %site5 = ("name", "名無しさん", "mail", "", "date", "2002/04/08 17:25", "body", "それ全部Perlでできるじゃん。");
+    @posts3 = (%site1, %site2, %site3, %site4, %site5);
+    %thread3 = ("board", "php", "id", "1018280640", "title", "Perlで作ったサイトを語ろう", "posts", @posts3);
+
+    %beginner1 = ("name", "初心者", "mail", "", "date", "2002/04/08 18:03", "body", "配列に投稿を追加したいです。画面を書き直す処理はどこに書けばいいですか。");
+    %beginner2 = ("name", "nobodyさん", "mail", "sage", "date", "2002/04/08 18:09", "body", "配列をpushしたらviewがもう一度呼ばれる。イベント処理には状態の変更だけ書けばいい。");
+    %beginner3 = ("name", "初心者", "mail", "", "date", "2002/04/08 18:14", "body", "DOMを探してappendしなくていいんですか？");
+    %beginner4 = ("name", "nobodyさん", "mail", "", "date", "2002/04/08 18:20", "body", "しなくていい。begin、text、endで欲しい画面を書く。HTML文字列は渡せないので、そのほうが安全でもある。");
+    @posts4 = (%beginner1, %beginner2, %beginner3, %beginner4);
+    %thread4 = ("board", "php", "id", "1018285380", "title", "【Perl】初心者コーナー＠PerlUI", "posts", @posts4);
+
+    %storage1 = ("name", "名無しさん", "mail", "", "date", "2002/04/08 19:02", "body", "掲示板のログ、ブラウザを閉じても残したい。");
+    %storage2 = ("name", "ファイル派", "mail", "", "date", "2002/04/08 19:08", "body", "storage:local:掲示板名 をopenしてJSONを書けば残る。ファイルに書くのと同じ形。");
+    %storage3 = ("name", "名無しさん", "mail", "sage", "date", "2002/04/08 19:17", "body", "Cookieを直接触るより分かりやすいな。読み込み用と書き込み用のhandleを分けるのもPerlっぽい。");
+    %storage4 = ("name", "ファイル派", "mail", "", "date", "2002/04/08 19:33", "body", "失敗した再実行ではstorageへの書き込みも破棄されるらしい。編集中のデモには助かる。");
+    %storage5 = ("name", "名無しさん", "mail", "", "date", "2002/04/08 19:40", "body", "ブラウザがファイルシステムに見えてきた。");
+    @posts5 = (%storage1, %storage2, %storage3, %storage4, %storage5);
+    %thread5 = ("board", "php", "id", "1018288920", "title", "localStorageをファイルとして使う", "posts", @posts5);
+
+    %prog1a = ("name", "仕様書無しさん", "mail", "", "date", "2002/04/09 09:12", "body", "納期まで二週間、仕様は今日から決めるそうです。");
+    %prog1b = ("name", "名無しさん", "mail", "sage", "date", "2002/04/09 09:18", "body", "まず議事録を残せ。話はそれからだ。");
+    %prog1c = ("name", "デスマ中", "mail", "", "date", "2002/04/09 09:41", "body", "議事録を書く時間もスケジュールにありません。");
+    @prog_posts1 = (%prog1a, %prog1b, %prog1c);
+    %thread6 = ("board", "prog", "id", "1018339920", "title", "納期まであと二週間なわけだが", "posts", @prog_posts1);
+    %prog2a = ("name", "新人", "mail", "", "date", "2002/04/09 12:04", "body", "先輩のコードにコメントが一行もありません。");
+    %prog2b = ("name", "仕様書無しさん", "mail", "", "date", "2002/04/09 12:11", "body", "コードがコメントだ、と先輩は言う。");
+    %prog2c = ("name", "新人", "mail", "sage", "date", "2002/04/09 12:20", "body", "変数名がaからzまで使われています。");
+    @prog_posts2 = (%prog2a, %prog2b, %prog2c);
+    %thread7 = ("board", "prog", "id", "1018350240", "title", "先輩のコードが読めません", "posts", @prog_posts2);
+
+    %unix1a = ("name", "root", "mail", "", "date", "2002/04/10 01:03", "body", "uptimeが100日を越えたので記念カキコ。");
+    %unix1b = ("name", "名無しさん", "mail", "sage", "date", "2002/04/10 01:08", "body", "カーネル更新して再起動しろ。");
+    %unix1c = ("name", "root", "mail", "", "date", "2002/04/10 01:15", "body", "止めたら何が起きるか誰も知らない。");
+    @unix_posts1 = (%unix1a, %unix1b, %unix1c);
+    %thread8 = ("board", "unix", "id", "1018416180", "title", "自宅サーバのuptimeを晒すスレ", "posts", @unix_posts1);
+    %unix2a = ("name", "シェル初心者", "mail", "", "date", "2002/04/10 08:22", "body", "ログから404だけ数える一行を教えてください。");
+    %unix2b = ("name", "名無しさん", "mail", "", "date", "2002/04/10 08:29", "body", "grep ' 404 ' access_log | wc -l");
+    %unix2c = ("name", "シェル初心者", "mail", "", "date", "2002/04/10 08:35", "body", "できました。パイプって便利ですね。");
+    @unix_posts2 = (%unix2a, %unix2b, %unix2c);
+    %thread9 = ("board", "unix", "id", "1018442520", "title", "今日覚えたシェルの一行", "posts", @unix_posts2);
+
+    %hp1a = ("name", "管理人", "mail", "", "date", "2002/04/11 17:10", "body", "入口にENTER画像を置いたら直帰が増えました。");
+    %hp1b = ("name", "名無しさん", "mail", "sage", "date", "2002/04/11 17:16", "body", "ENTERの下に『推奨800×600』も書こう。");
+    %hp1c = ("name", "管理人", "mail", "", "date", "2002/04/11 17:23", "body", "MIDIも自動再生にしておきます。");
+    @hp_posts1 = (%hp1a, %hp1b, %hp1c);
+    %thread10 = ("board", "hp", "id", "1018531800", "title", "かっこいい入口ページを作りたい", "posts", @hp_posts1);
+    %hp2a = ("name", "素材屋", "mail", "", "date", "2002/04/11 20:01", "body", "NEWアイコンを点滅させるGIFを作りました。");
+    %hp2b = ("name", "名無しさん", "mail", "", "date", "2002/04/11 20:09", "body", "工事中アイコンもお願いします。");
+    %hp2c = ("name", "素材屋", "mail", "", "date", "2002/04/11 20:24", "body", "透過GIF版も追加しました。直リンクは禁止です。");
+    @hp_posts2 = (%hp2a, %hp2b, %hp2c);
+    %thread11 = ("board", "hp", "id", "1018542060", "title", "無料ホームページ素材を語るスレ", "posts", @hp_posts2);
+
+    %host1a = ("name", "名無しさん", "mail", "", "date", "2002/04/12 10:14", "body", "月500円でCGI可、転送量無制限って本当？");
+    %host1b = ("name", "鯖缶", "mail", "sage", "date", "2002/04/12 10:22", "body", "無制限と書いてあるが、混んだら止まると思え。");
+    %host1c = ("name", "名無しさん", "mail", "", "date", "2002/04/12 10:37", "body", "まず掲示板を置いて様子を見ます。");
+    @host_posts1 = (%host1a, %host1b, %host1c);
+    %thread12 = ("board", "hosting", "id", "1018593240", "title", "CGIが使える格安鯖を探してます", "posts", @host_posts1);
+    %host2a = ("name", "移転中", "mail", "", "date", "2002/04/12 22:45", "body", "FTPでログを落として新鯖へ上げれば終わりですか。");
+    %host2b = ("name", "名無しさん", "mail", "", "date", "2002/04/12 22:53", "body", "パーミッションとPerlのパスを忘れるな。");
+    %host2c = ("name", "移転中", "mail", "", "date", "2002/04/12 23:18", "body", "#!/usr/local/bin/perl に直したら動きました。");
+    @host_posts2 = (%host2a, %host2b, %host2c);
+    %thread13 = ("board", "hosting", "id", "1018638300", "title", "レンタルサーバ移転相談所", "posts", @host_posts2);
+
+    @threads = (%thread1, %thread2, %thread3, %thread4, %thread5, %thread6, %thread7, %thread8, %thread9, %thread10, %thread11, %thread12, %thread13);
+}
+
+sub save_threads {
+    open STORE_OUT, ">storage:local:perlscript-web/2ch/threads-v3";
+    print STORE_OUT encode_json(@threads);
+}
+
+sub load_threads {
+    $stored_threads = <STORE_IN>;
+    if ($stored_threads ne "") { @threads = decode_json($stored_threads); }
+    else { seed_threads(); save_threads(); }
+}
+
+sub visit {
+    $route = <ROUTE>;
+    $last_visit = $now;
+    open VISIT_OUT, ">storage:local:perlscript-web/2ch/last-visit";
+    print VISIT_OUT $last_visit;
+}
+
+sub tick { $now = <CLOCK>; }
+
+sub find_thread {
+    $current_thread = "";
+    $current_board = "php";
+    if ($route =~ /^\/test\/read\.cgi\/([^\/]+)\/([0-9]+)\/?$/) { $current_board = $1; $current_thread = $2; }
+}
+
+sub create_thread {
+    return if $subject eq "";
+    return if $message eq "";
+    $author = $name;
+    $author = "名無しさん" if $author eq "";
+    $new_id = $now;
+    %post = ("name", $author, "mail", $mail, "date", "UNIX $now", "body", $message);
+    @new_posts = (%post);
+    $current_board = "php";
+    if ($route =~ /^\/test\/new\.cgi\/([^\/]+)\/?$/) { $current_board = $1; }
+    %new_thread = ("board", $current_board, "id", $new_id, "title", $subject, "posts", @new_posts);
+    push(@threads, %new_thread);
+    save_threads();
+    $subject = "";
+    $message = "";
+    print ROUTE "/test/read.cgi/$current_board/$new_id/";
+}
+
+sub reply {
+    return if $message eq "";
+    find_thread();
+    return if $current_thread eq "";
+    $author = $name;
+    $author = "名無しさん" if $author eq "";
+    $i = 0;
+    while ($i <= $#threads) {
+        %thread = $threads[$i];
+        if ($thread{board} eq $current_board && $thread{id} eq $current_thread) {
+            @posts = $thread{posts};
+            %post = ("name", $author, "mail", $mail, "date", "UNIX $now", "body", $message);
+            push(@posts, %post);
+            $thread{posts} = @posts;
+            $threads[$i] = %thread;
+        }
+        $i++;
+    }
+    save_threads();
+    $message = "";
+}
+
+sub reset_demo {
+    seed_threads();
+    save_threads();
+    $message = "";
+    $subject = "";
+    print ROUTE "/$current_board/";
+}
+
+sub set_current_board {
+    $current_board = "php";
+    if ($route =~ /^\/([^\/]+)\/?$/) { $current_board = $1; }
+    if ($route =~ /^\/([^\/]+)\/subback\.html$/) { $current_board = $1; }
+    if ($route =~ /^\/test\/new\.cgi\/([^\/]+)\/?$/) { $current_board = $1; }
+    if ($route =~ /^\/test\/read\.cgi\/([^\/]+)\/[0-9]+\/?$/) { $current_board = $1; }
+}
+
+sub board_name {
+    $board_label = "WEBプログラミング";
+    if ($current_board eq "prog") { $board_label = "プログラマー"; }
+    if ($current_board eq "unix") { $board_label = "UNIX"; }
+    if ($current_board eq "hp") { $board_label = "Web制作"; }
+    if ($current_board eq "hosting") { $board_label = "レンタルサーバ"; }
+    return $board_label;
+}
+
+sub board_description {
+    $board_copy = "Perl、CGI、正規表現、そしてブラウザで動くUIについて話す板です。";
+    if ($current_board eq "prog") { $board_copy = "プログラマーの日常、仕事、コードについて話す板です。"; }
+    if ($current_board eq "unix") { $board_copy = "UNIX、サーバ、シェルと運用について話す板です。"; }
+    if ($current_board eq "hp") { $board_copy = "ホームページ制作、素材、HTMLについて話す板です。"; }
+    if ($current_board eq "hosting") { $board_copy = "レンタルサーバ、CGI設置、移転について話す板です。"; }
+    return $board_copy;
+}
+
+sub top_links {
+    begin("nav", "class", "top-links", "aria-label", "掲示板メニュー");
+    begin("a", "href", "#/"); text("■ 掲示板一覧 ■"); end();
+    begin("a", "href", "#/" . $current_board . "/"); text(board_name() . "板"); end();
+    begin("a", "href", "#/" . $current_board . "/subback.html"); text("スレッド一覧"); end();
+    end();
+}
+
+sub board_header {
+    begin("header", "class", "board-header");
+    begin("p", "class", "archive-mark", "aria-hidden", "true"); text("２ちゃんねる"); end();
+    begin("div", "class", "board-box");
+    begin("h1"); text(board_name() . "＠PerlUI掲示板"); end();
+    begin("p"); text(board_description()); end();
+    begin("p"); text("ここは2002年4月8日のアーカイブ構造をもとにしたデモです。投稿内容は架空です。"); end();
+    begin("ul");
+    begin("li"); text("質問の前に過去ログとスレッド一覧を検索しましょう。"); end();
+    begin("li"); text("個人情報やAPIキーは書き込まないでください。"); end();
+    end();
+    end();
+    top_links();
+    end();
+}
+
+sub new_thread_form {
+    begin("form", "class", "composer"); on("submit", "create_thread");
+    begin("div", "class", "field-row");
+    begin("label"); text("名前："); begin("input", "id", "name", "name", "name", "size", "20", "autocomplete", "nickname"); bind("value", "name"); end(); end();
+    begin("label"); text("E-mail："); begin("input", "id", "mail", "name", "mail", "size", "20", "autocomplete", "email"); bind("value", "mail"); end(); end();
+    end();
+    begin("label", "class", "subject-label"); text("題名："); begin("input", "id", "subject", "name", "subject", "size", "40", "aria-required", "true"); bind("value", "subject"); end(); end();
+    begin("label", "class", "message-label"); begin("span"); text("本文："); end(); begin("textarea", "id", "message", "name", "message", "rows", "5", "cols", "64", "aria-required", "true"); bind("value", "message"); end(); end();
+    begin("button", "type", "submit"); text("新規スレッド作成"); end();
+    end();
+}
+
+sub thread_preview {
+    %thread = $_[0];
+    @posts = $thread{posts};
+    begin("section", "class", "thread-box"); key($thread{id});
+    begin("h2"); begin("a", "href", "#/test/read.cgi/" . $current_board . "/" . $thread{id} . "/"); text($thread{title}); end(); end();
+    $preview_i = 0;
+    while ($preview_i <= $#posts && $preview_i < 3) {
+        %post = $posts[$preview_i];
+        begin("article", "class", "post");
+        begin("div", "class", "post-meta"); text($preview_i + 1); text(" 名前："); begin("strong"); text($post{name}); end(); text(" 投稿日："); text($post{date}); end();
+        begin("p"); text($post{body}); end();
+        end();
+        $preview_i++;
+    }
+    begin("p", "class", "thread-jump"); begin("a", "href", "#/test/read.cgi/" . $current_board . "/" . $thread{id} . "/"); text("全部読む（" . ($#posts + 1) . "）"); end(); end();
+    end();
+}
+
+sub board_view {
+    board_header();
+    begin("main", "class", "board-main");
+    $board_count = 0;
+    $count_i = 0;
+    while ($count_i <= $#threads) { %count_thread = $threads[$count_i]; if ($count_thread{board} eq $current_board) { $board_count++; } $count_i++; }
+    begin("p", "class", "board-note"); text("現在 " . $board_count . " スレッド／最終巡回 UNIX $last_visit"); end();
+    $board_i = 0;
+    while ($board_i <= $#threads) { %board_thread = $threads[$board_i]; if ($board_thread{board} eq $current_board) { thread_preview($threads[$board_i]); } $board_i++; }
+    begin("p", "class", "new-thread-entry"); begin("a", "href", "#/test/new.cgi/" . $current_board . "/"); text("新規スレッド作成画面へ"); end(); end();
+    end();
+}
+
+sub new_thread_view {
+    board_header();
+    begin("main", "class", "new-thread-page");
+    begin("h2"); text("新規スレッド作成"); end();
+    begin("p"); text("題名と本文を入力してください。名前とE-mailは省略できます。"); end();
+    new_thread_form();
+    end();
+}
+
+sub board_list_view {
+    begin("main", "class", "board-list-page");
+    begin("h1"); text("■ ２ちゃんねる掲示板 ■"); end();
+    begin("p"); text("日本のWebとPerlが近かった時代を、PerlUIで巡回できます。"); end();
+    begin("section", "class", "category"); begin("h2"); text("ＰＣ等"); end();
+    begin("ul");
+    begin("li"); begin("a", "href", "#/php/"); text("WEBプログラミング"); end(); text("　Perl / CGI / PHP"); end();
+    begin("li"); begin("a", "href", "#/prog/"); text("プログラマー"); end(); text("　仕事 / コード / デスマ"); end();
+    begin("li"); begin("a", "href", "#/unix/"); text("UNIX"); end(); text("　サーバ / シェル / 運用"); end();
+    end(); end();
+    begin("section", "class", "category"); begin("h2"); text("ネット関係"); end();
+    begin("ul"); begin("li"); begin("a", "href", "#/hp/"); text("Web制作"); end(); text("　HTML / 素材 / ホームページ"); end(); begin("li"); begin("a", "href", "#/hosting/"); text("レンタルサーバ"); end(); text("　CGI / FTP / 鯖移転"); end(); end(); end();
+    begin("p", "class", "enter-board"); text("板を選んで、2002年のWebを巡回してください。"); end();
+    end();
+}
+
+sub subback_view {
+    board_header();
+    begin("main", "class", "subback"); begin("h2"); text(board_name() . "板＠スレッド一覧"); end();
+    begin("ol");
+    $i = 0;
+    while ($i <= $#threads) {
+        %thread = $threads[$i]; @posts = $thread{posts};
+        if ($thread{board} eq $current_board) { begin("li"); begin("a", "href", "#/test/read.cgi/" . $current_board . "/" . $thread{id} . "/"); text($thread{title} . " (" . ($#posts + 1) . ")"); end(); end(); }
+        $i++;
+    }
+    end();
+    end();
+}
+
+sub reply_form {
+    begin("form", "class", "composer reply-form"); on("submit", "reply");
+    begin("div", "class", "field-row");
+    begin("label"); text("名前："); begin("input", "id", "reply-name", "size", "20"); bind("value", "name"); end(); end();
+    begin("label"); text("E-mail："); begin("input", "id", "reply-mail", "size", "20"); bind("value", "mail"); end(); end();
+    end();
+    begin("label", "class", "message-label"); begin("span"); text("本文："); end(); begin("textarea", "id", "reply-message", "rows", "5", "cols", "64", "aria-required", "true"); bind("value", "message"); end(); end();
+    begin("button", "id", "reply-submit", "type", "submit"); text("書き込む"); end();
+    end();
+}
+
+sub thread_view {
+    board_header();
+    find_thread();
+    $found = 0;
+    begin("main", "class", "thread-page");
+    $i = 0;
+    while ($i <= $#threads) {
+        %thread = $threads[$i];
+        if ($thread{board} eq $current_board && $thread{id} eq $current_thread) {
+            $found = 1;
+            begin("section", "class", "thread-box full-thread");
+            begin("h2"); text($thread{title}); end();
+            @posts = $thread{posts};
+            $j = 0;
+            while ($j <= $#posts) {
+                %post = $posts[$j];
+                begin("article", "class", "post"); key($j + 1);
+                begin("div", "class", "post-meta"); text($j + 1); text(" 名前："); begin("strong"); text($post{name}); end(); text(" 投稿日："); text($post{date}); end();
+                begin("p"); text($post{body}); end();
+                end();
+                $j++;
+            }
+            end();
+            reply_form();
+        }
+        $i++;
+    }
+    if (!$found) { begin("p"); text("そのスレッドはありません。"); end(); }
+    end();
+}
+
+sub footer_view {
+    begin("footer", "class", "site-footer");
+    begin("p"); begin("a", "href", "#/" . $current_board . "/"); text("掲示板に戻る"); end(); text(" ｜ "); begin("a", "href", "#/" . $current_board . "/subback.html"); text("過去ログ倉庫"); end(); text(" ｜ "); begin("button", "type", "button"); on("click", "reset_demo"); text("デモを初期化"); end(); end();
+    begin("p"); text("archive-inspired demo · current board: " . $current_board . " · application: Perl 1.0-shaped source"); end();
+    end();
+}
+
+sub view {
+    set_current_board();
+    begin("div", "class", "archive-page");
+    if ($route eq "/") { board_list_view(); }
+    if ($route =~ /^\/(php|prog|unix|hp|hosting)\/?$/) { board_view(); }
+    if ($route =~ /^\/(php|prog|unix|hp|hosting)\/subback\.html$/) { subback_view(); }
+    if ($route =~ /^\/test\/new\.cgi\/(php|prog|unix|hp|hosting)\/?$/) { new_thread_view(); }
+    if ($route =~ /^\/test\/read\.cgi\/(php|prog|unix|hp|hosting)\/[0-9]+\/?$/) { thread_view(); }
+    footer_view();
+    end();
+}
+
+open STYLE, ">css:2ch-archive";
+print STYLE '
+:root{--paper:oklch(97% .012 300);--mint:oklch(94% .075 145);--panel:oklch(94% .006 275);--ink:oklch(18% .01 275);--rule:oklch(48% .012 275);--link:oklch(46% .22 265);--visited:oklch(43% .17 315);--red:oklch(55% .23 28);--green:oklch(46% .16 145);--focus:oklch(70% .20 235)}
+.archive-page{min-height:100dvh;padding-block:.5rem 4rem;color:var(--ink);background:repeating-linear-gradient(135deg,var(--paper) 0,var(--paper) 6px,oklch(96% .018 300) 6px,oklch(96% .018 300) 12px);font-family:"Yu Mincho","Hiragino Mincho ProN",serif}
+.archive-page a{color:var(--link);white-space:nowrap}.archive-page a:visited{color:var(--visited)}.archive-page a:focus-visible,.archive-page button:focus-visible,.archive-page input:focus-visible,.archive-page textarea:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.board-header,.board-main,.thread-page,.subback,.new-thread-page{width:min(95%,72rem);margin-inline:auto}.archive-mark{margin:.4rem 0;text-align:center;color:var(--red);font:900 clamp(1.8rem,7vw,3.4rem)/1 serif;letter-spacing:-.08em}.board-box,.top-links,.thread-box{border:1px solid var(--rule);padding:.45rem;background:var(--mint)}.board-box h1{margin:.1rem 0 .4rem;text-align:center;font-size:clamp(1.45rem,5vw,2.1rem);line-height:1.2}.board-box p,.board-box ul{margin:.3rem auto;max-width:64rem}.top-links{display:flex;flex-wrap:wrap;justify-content:center;gap:.4rem 1.2rem;margin-block:.45rem;text-align:center}.composer{border:1px solid var(--rule);background:var(--mint);padding:.6rem;text-align:center}.field-row{display:flex;flex-wrap:wrap;justify-content:center;gap:.45rem 1rem}.composer label{display:inline-flex;align-items:center;gap:.2rem}.composer input,.composer textarea{max-width:100%;border:2px inset var(--panel);outline:2px solid transparent;outline-offset:1px;background:oklch(99% .005 145);color:var(--ink);font:16px/1.35 sans-serif}.composer input{min-height:32px;padding:.2rem}.subject-label{display:flex!important;justify-content:center;margin-block:.4rem}.subject-label input{width:min(28rem,80%)}.message-label{display:flex!important;align-items:flex-start!important;justify-content:center}.message-label textarea{width:min(42rem,86%);min-height:7rem;padding:.35rem;resize:vertical}.composer button,.site-footer button,.new-thread-entry a{min-height:44px;margin:.45rem;border:2px outset var(--panel);background:var(--panel);color:var(--ink);padding:.35rem .8rem;font:700 14px/1 sans-serif;white-space:nowrap;cursor:pointer}.board-note{margin:.5rem 0}.new-thread-entry{text-align:center}.new-thread-entry a{display:inline-flex;align-items:center;text-decoration:none}.new-thread-page{border:1px solid var(--rule);background:var(--mint);padding:.75rem}.new-thread-page h2{margin:.1rem 0;color:var(--red)}.thread-box{margin-block:.55rem;background:var(--panel)}.thread-box h2{min-width:0;margin:.05rem .2rem .5rem;color:var(--red);font-size:clamp(1rem,4.5vw,1.8rem);line-height:1.25}.thread-box h2 a{display:block;overflow:hidden;color:var(--red);text-overflow:ellipsis}.post{margin:.45rem .25rem 1rem}.post-meta{font-size:.9rem;overflow-wrap:anywhere}.post-meta strong{color:var(--green)}.post p{margin:.5rem 1rem;white-space:pre-wrap;overflow-wrap:anywhere}.thread-jump{text-align:end}.board-list-page{width:min(94%,50rem);margin:1rem auto;background:var(--paper);border:1px solid var(--rule);padding:1rem}.board-list-page h1{text-align:center;color:var(--red);font-size:clamp(1.5rem,7vw,2.5rem)}.category{margin-block:1rem}.category h2{margin:0;border-block-end:1px solid var(--rule);background:var(--mint);padding:.2rem .5rem;font-size:1.2rem}.category ul{columns:2;column-width:14rem}.category li{break-inside:avoid;margin-block:.35rem}.enter-board{text-align:center;font-weight:700}.subback{background:var(--panel);border:1px solid var(--rule);padding:.75rem}.subback h2{margin-top:0;color:var(--red)}.subback li{overflow:hidden;margin-block:.35rem;text-overflow:ellipsis}.full-thread{margin-block:.5rem}.reply-form{margin-block:.6rem}.site-footer{width:min(95%,72rem);margin:1rem auto;text-align:center;font-size:.85rem}.site-footer p{margin:.35rem}.site-footer button{min-height:44px;margin:0;padding:.3rem .5rem}.boot-error{margin:1rem;border:1px solid var(--red);padding:1rem;background:var(--panel)}
+@media(min-width:40rem){.archive-page{padding-block-start:1rem}.board-box,.top-links,.thread-box{padding:.6rem}.post p{margin-inline:2rem}.composer input{min-height:36px}}
+@media(pointer:coarse){.top-links a,.thread-jump a,.subback a,.board-list-page a{display:inline-block;min-height:44px;padding-block:.55rem}.composer input{min-height:44px}}
+';
+open APP, ">ui:#app-root";
+open ROUTE, "route:hash";
+open CLOCK, "clock:60000";
+open STORE_IN, "storage:local:perlscript-web/2ch/threads-v3";
+open VISIT_IN, "storage:local:perlscript-web/2ch/last-visit";
+$now = <CLOCK>;
+$last_visit = <VISIT_IN>;
+$last_visit = $now if $last_visit eq "";
+load_threads();
+do watch(ROUTE, "visit");
+do watch(CLOCK, "tick");
+visit();
+mount(APP, "view");
+</script>
+<script>
+const perl = document.querySelector('#app');
+const source = document.querySelector('#source');
+const dialog = document.querySelector('#source-dialog');
+const runButton = document.querySelector('#run');
+const status = document.querySelector('#run-status');
+const errorPanel = document.querySelector('#error');
+let runCount = 0;
+source.value = perl.textContent.trim();
+const showError = error => {
+  errorPanel.textContent = `${error.name}: ${error.message}\n${error.excerpt || ''}`;
+  errorPanel.hidden = false;
+};
+PerlScript.setErrorHandler(showError);
+async function run() {
+  errorPanel.hidden = true;
+  runButton.disabled = true;
+  status.textContent = 'Running…';
+  perl.textContent = source.value;
+  perl.type = 'text/perl';
+  await new Promise(requestAnimationFrame);
+  try {
+    await PerlScript.runScripts();
+    runCount++;
+    status.textContent = `Run ${runCount} complete`;
+  } catch (error) {
+    showError(error);
+    status.textContent = 'Run failed — previous program is still active';
+  } finally {
+    runButton.disabled = false;
+  }
+}
+document.querySelector('#open-source').addEventListener('click', () => dialog.showModal());
+document.querySelector('#close-source').addEventListener('click', () => dialog.close());
+dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+runButton.addEventListener('click', run);
+run();
+</script>
+</body>
+</html>
