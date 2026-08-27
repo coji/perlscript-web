@@ -32,6 +32,10 @@ test("tours the 2005 home, profiles, footprints, messages, and communities", asy
   await page.getByRole("link", { name: /Dan Kogaiのプロフィール画像 Dan Kogai/ }).click();
   await expect(page.getByRole("heading", { name: "Dan Kogaiのプロフィール" })).toBeVisible();
   await expect(page.getByText(/写真は公開プロフィールを参考にしたAIによる2005年当時の再現/)).toBeVisible();
+  await page.getByRole("link", { name: "日記をすべて読む" }).click();
+  await expect(page.locator(".profile-mini strong")).toHaveText("Dan Kogai");
+  await page.locator(".main-column").getByRole("link", { name: "use Encode;", exact: true }).click();
+  await expect(page.locator(".profile-mini strong")).toHaveText("Dan Kogai");
   await page.getByRole("link", { name: "ホーム", exact: true }).click();
 
   await page.getByRole("link", { name: /シフトさんのプロフィール画像 シフトさん/ }).click();

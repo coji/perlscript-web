@@ -256,7 +256,10 @@ sub site_header {
 }
 
 sub left_rail {
-    %me = find_user($current_user);
+    $rail_user = $current_user;
+    if ($route =~ /^\/list_diary\.pl\?id=([0-9]+)$/) { $rail_user = $1; }
+    if ($route =~ /^\/view_diary\.pl\?id=[0-9]+&owner_id=([0-9]+)$/) { $rail_user = $1; }
+    %rail_profile = find_user($rail_user);
     begin("aside", "class", "left-rail");
     if ($route =~ /^\/view_diary\.pl/ || $route =~ /^\/list_diary\.pl/) {
         begin("section", "class", "rail-box calendar-box"); begin("h2"); text("< 08月のカレンダー >"); end();
@@ -269,11 +272,11 @@ sub left_rail {
         end();
     }
     begin("section", "class", "rail-box profile-mini");
-    avatar($current_user, "avatar-large");
-    begin("strong"); text($me{name}); end();
-    begin("a", "href", "#/show_friend.pl?id=1"); text("プロフィール確認"); end();
+    avatar($rail_user, "avatar-large");
+    begin("strong"); text($rail_profile{name}); end();
+    begin("a", "href", "#/show_friend.pl?id=" . $rail_profile{id}); text("プロフィール確認"); end();
     end();
-    begin("section", "class", "rail-box"); begin("h2"); text("マイミクシィ一覧"); end();
+    begin("section", "class", "rail-box"); begin("h2"); text($rail_profile{name} . "さんのマイミクシィ一覧"); end();
     begin("div", "class", "friend-grid");
     $friend_i = 1;
     while ($friend_i <= $#users) { %friend = $users[$friend_i]; begin("a", "href", "#/show_friend.pl?id=" . $friend{id}); avatar($friend{id}, "avatar-small"); begin("span"); text($friend{name}); end(); end(); $friend_i++; }
