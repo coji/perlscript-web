@@ -14,6 +14,8 @@ test("the mixi archive keeps navigation, diaries, footprints, communities, and c
   assert.match(source, /storage:local:perlscript-web\/mixi\/diaries-v2/);
   assert.match(source, /storage:local:perlscript-web\/mixi\/footprints-v1/);
   assert.match(source, /storage:local:perlscript-web\/mixi\/communities-v1/);
+  assert.match(source, /storage:local:perlscript-web\/mixi\/profile-photo-v1/);
+  assert.match(source, /open IMAGE, "stream:image"/);
   assert.match(source, /open STYLE, ">css:mixi-2005"/);
   assert.match(source, /--mixi-orange:#f69223/);
   assert.match(source, /header-banner-v1\.webp/);
@@ -38,26 +40,34 @@ test("the mixi archive keeps navigation, diaries, footprints, communities, and c
   const document = createFakeDocument({ "#app-root": root }).document;
   const runtime = new Runtime({ io: new BrowserIO(document, {
     storage: { local },
+    streams: { image: () => ({ write() {} }) },
     clock: { now: () => 1787760000000, setInterval: () => 1, clearInterval() {} },
     navigation,
   }) });
 
   runtime.run(source);
   assert.match(root.textContent, /マイミクシィ最新日記/);
+  assert.match(root.textContent, /日記コメント記入履歴/);
+  assert.match(root.textContent, /コミュニティ最新書き込み/);
+  assert.match(root.textContent, /マイミクシィ最新レビュー/);
+  assert.match(root.textContent, /機能制限に関するお知らせ/);
+  assert.doesNotMatch(root.textContent, /このデモについて/);
   assert.match(root.textContent, /ブラウザでPerlが動いた/);
-  assert.equal(runtime.arrays.users.length, 9);
-  assert.equal(runtime.arrays.diaries.length, 9);
+  assert.equal(runtime.arrays.users.length, 10);
+  assert.equal(runtime.arrays.diaries.length, 10);
   assert.equal(runtime.arrays.communities.length, 2);
   assert.match(root.textContent, /Dan Kogai/);
   assert.match(root.textContent, /miyagawa/);
   assert.match(root.textContent, /naoya/);
   assert.match(root.textContent, /lestrrat/);
+  assert.match(root.textContent, /衛藤バタラ/);
 
   const routeCases = [
     ["/login.pl", ["community entertainment", "次回から自動的にログイン"]],
     ["/register.pl", ["新規登録", "登録内容を確認する"]],
     ["/show_friend.pl?id=7", ["miyagawaのプロフィール", "miyagawaさんの最新の日記", "フィードを一か所に集めたい"]],
     ["/list_diary.pl?id=6", ["Dan Kogaiさんの日記", "use Encode;"]],
+    ["/show_friend.pl?id=10", ["衛藤バタラのプロフィール", "mixiの企画と初期開発", "またサーバを買いに行く"]],
     ["/view_diary.pl?id=106&owner_id=6", ["use Encode;", "コメントを書く"]],
     ["/add_diary.pl", ["日記を書く", "写真3", "公開範囲", "日記を公開する"]],
     ["/show_log.pl", ["最近の足あと", "ページ全体のアクセス数"]],
@@ -68,7 +78,7 @@ test("the mixi archive keeps navigation, diaries, footprints, communities, and c
     ["/invite.pl", ["友人をmixiに招待する", "招待メールを送る"]],
     ["/add_friend.pl?id=7", ["マイミクシィに追加", "miyagawa", "メッセージ（任意）"]],
     ["/edit_profile.pl", ["プロフィール変更", "趣味", "変更内容を確認する"]],
-    ["/edit_photo.pl", ["写真を編集する", "最大3枚", "写真をアップロードする"]],
+    ["/edit_photo.pl", ["写真を編集する", "512×512", "写真をアップロードする"]],
     ["/edit_account.pl", ["設定変更", "RSSのURL", "日記・ブログの選択"]],
     ["/calendar.pl", ["2005年08月のカレンダー", "YAPC打ち合わせ"]],
     ["/search_community.pl", ["コミュニティを検索・並び替える", "メンバー数順"]],
@@ -94,20 +104,26 @@ test("the mixi archive keeps navigation, diaries, footprints, communities, and c
     runtime.call("create_diary", []);
     runtime.flushUI();
   };
+  runtime.scalars.diary_photo1 = "data:image/webp;base64,AAAA";
+  runtime.scalars.diary_photo2 = "data:image/jpeg;base64,BBBB";
   createDiary("Perlで書いた日記", "routeもstorageも普通のfilehandleだった。");
-  assert.equal(navigation.location.hash, "#/view_diary.pl?id=110&owner_id=1");
-  createDiary("同じ分に書いた二件目", "時計が進まなくても別の日記になる。");
   assert.equal(navigation.location.hash, "#/view_diary.pl?id=111&owner_id=1");
+  createDiary("同じ分に書いた二件目", "時計が進まなくても別の日記になる。");
+  assert.equal(navigation.location.hash, "#/view_diary.pl?id=112&owner_id=1");
   const diaries = JSON.parse(stored.get("perlscript-web/mixi/diaries-v2"));
-  assert.deepEqual(diaries.slice(0, 2).map(diary => diary.id), [111, 110]);
+  assert.deepEqual(diaries.slice(0, 2).map(diary => diary.id), [112, 111]);
   assert.equal(diaries[0].title, "同じ分に書いた二件目");
   assert.equal(diaries[0].owner, "1");
+  assert.deepEqual(diaries[1].photos, ["data:image/webp;base64,AAAA", "data:image/jpeg;base64,BBBB"]);
+  assert.deepEqual(diaries[0].photos, []);
+  assert.match(diaries[0].date, /^2005年08月27日 [0-9]{2}:[0-9]{2}$/);
+  assert.match(runtime.call("display_timestamp", ["UNIX 1787870587"]), /^2005年08月27日 [0-9]{2}:[0-9]{2}$/);
 
-  runtime.scalars.route = "/view_diary.pl?id=110&owner_id=1";
+  runtime.scalars.route = "/view_diary.pl?id=111&owner_id=1";
   runtime.scalars.comment_body = "当時の画面にかなり近づいた。";
   runtime.call("add_comment", []);
   const commentedDiaries = JSON.parse(stored.get("perlscript-web/mixi/diaries-v2"));
-  assert.equal(commentedDiaries.find(diary => diary.id === 110).comments.at(-1).body, "当時の画面にかなり近づいた。");
+  assert.equal(commentedDiaries.find(diary => diary.id === 111).comments.at(-1).body, "当時の画面にかなり近づいた。");
 
   runtime.scalars.route = "/view_community.pl?id=10";
   runtime.scalars.topic_body = "昔のYAPCの話をしましょう。";

@@ -74,6 +74,7 @@ Binary operators at the same level associate left. Assignment associates right.
 - `shift(@array)`
 - `keys(%hash)`
 - `values(%hash)`
+- `localtime(unix_seconds)` — returns the host-local nine-element Perl time list
 - `encode_json(value)` — serializes a scalar or aggregate for a text I/O protocol
 - `decode_json(string)` — parses JSON into scalars, arrays, and hashes
 - `json_boolean(value)` — returns a JSON-safe boolean using Perl truth rules
@@ -125,6 +126,7 @@ storage:session:<key>             readable tab-session browser value
 - `keydown` event handles fire only for Enter and ignore IME composition (`isComposing` and key code 229).
 - Other event handles fire for every event of their declared type.
 - Stream handles are bidirectional. `print HANDLE` sends text to the registered host adapter; `<HANDLE>` reads the next emitted text chunk.
+- The optional image adapter registers `stream:image`. A JSON command names a file-input selector, optional correlation ID, and image constraints; the adapter emits a bounded WebP data URL, falling back to JPEG when WebP canvas encoding is unavailable, or an error record. The default mode center-crops square avatars, while `fit: "contain"` preserves content-image aspect ratios. File selection and raster encoding stay host-owned while Perl owns persistence and UI state.
 - Route handles are bidirectional. Reading returns a route beginning with `/`; writing a same-origin route navigates and invokes watchers. `route:hash` reacts to `hashchange`, and `route:history` reacts to `popstate`. Absolute, protocol-relative, empty, and newline-containing routes are rejected.
 - Clock handles are read-only. Reading returns Unix time in whole seconds. `watch` invokes the named subroutine at the declared interval, from 16 milliseconds through 24 hours.
 - Storage handles expose named `localStorage` or `sessionStorage` values as files. A readable handle returns the complete stored string. Opening with `>` truncates the value; subsequent prints append in order to the replacement value. `clear()` removes the selected storage value.

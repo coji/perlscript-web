@@ -221,6 +221,13 @@ export class Runtime {
     if (name === "shift") { const value = args[0].shift() ?? ""; this.markDirty(); return value; }
     if (name === "keys") return Object.keys(args[0]);
     if (name === "values") return Object.values(args[0]);
+    if (name === "localtime") {
+      const date = new Date(num(args[0]) * 1000);
+      if (Number.isNaN(date.getTime())) return [];
+      const yearStart = new Date(date.getFullYear(), 0, 1);
+      const yearDay = Math.floor((date.getTime() - yearStart.getTime()) / 86400000);
+      return [date.getSeconds(), date.getMinutes(), date.getHours(), date.getDate(), date.getMonth(), date.getFullYear() - 1900, date.getDay(), yearDay, 0];
+    }
     if (name === "encode_json") {
       const value = JSON.stringify(args[0]);
       return value === undefined ? "" : value;

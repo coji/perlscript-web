@@ -6,4 +6,5 @@ export { BrowserIO } from "./browser-io.js";
 export { UITreeBuilder, DOMUIRenderer } from "./ui.js";
 export { run, runScripts, disposeScript, setErrorHandler, registerStream } from "./browser.js";
 export { createWebAdapters, installWebAdapters } from "./web-adapters.js";
+export { processImageUpload, createImageAdapter, installImageAdapter } from "./image-adapter.js";
 export { PerlScriptSyntaxError, PerlScriptRuntimeError } from "./errors.js";

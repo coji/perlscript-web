@@ -22,6 +22,7 @@ var PerlScript = (() => {
   var auto_exports = {};
   __export(auto_exports, {
     disposeScript: () => disposeScript,
+    installImageAdapter: () => installImageAdapter,
     installWebAdapters: () => installWebAdapters,
     registerStream: () => registerStream,
     run: () => run,
@@ -1141,6 +1142,13 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       }
       if (name === "keys") return Object.keys(args[0]);
       if (name === "values") return Object.values(args[0]);
+      if (name === "localtime") {
+        const date = new Date(num(args[0]) * 1e3);
+        if (Number.isNaN(date.getTime())) return [];
+        const yearStart = new Date(date.getFullYear(), 0, 1);
+        const yearDay = Math.floor((date.getTime() - yearStart.getTime()) / 864e5);
+        return [date.getSeconds(), date.getMinutes(), date.getHours(), date.getDate(), date.getMonth(), date.getFullYear() - 1900, date.getDay(), yearDay, 0];
+      }
       if (name === "encode_json") {
         const value = JSON.stringify(args[0]);
         return value === void 0 ? "" : value;
@@ -2114,6 +2122,97 @@ ${" ".repeat(Math.max(0, range.start.column - 1))}^`;
       unregisterHTTP();
       unregisterSecret();
     };
+  }
+
+  // src/image-adapter.js
+  var DEFAULT_MAX_INPUT_BYTES = 10 * 1024 * 1024;
+  var DEFAULT_MAX_OUTPUT_BYTES = 250 * 1024;
+  function dataURLBytes(dataURL) {
+    const encoded = dataURL.split(",", 2)[1] || "";
+    return Math.ceil(encoded.length * 3 / 4);
+  }
+  async function processImageUpload(file, options = {}) {
+    const document2 = options.document || globalThis.document;
+    const decode = options.createImageBitmap || globalThis.createImageBitmap?.bind(globalThis);
+    if (!document2 || !decode) throw new Error("Image processing is unavailable in this browser.");
+    const size = Math.max(32, Math.min(2048, Number(options.size) || 512));
+    const maxOutputBytes = Math.max(16 * 1024, Number(options.maxOutputBytes) || DEFAULT_MAX_OUTPUT_BYTES);
+    const bitmap = await decode(file);
+    try {
+      if (!bitmap.width || !bitmap.height) throw new Error("The selected image has no visible pixels.");
+      const contain = options.fit === "contain";
+      const sourceSize = Math.min(bitmap.width, bitmap.height);
+      const sourceX = contain ? 0 : (bitmap.width - sourceSize) / 2;
+      const sourceY = contain ? 0 : (bitmap.height - sourceSize) / 2;
+      const sourceWidth = contain ? bitmap.width : sourceSize;
+      const sourceHeight = contain ? bitmap.height : sourceSize;
+      const scale = contain ? Math.min(1, size / Math.max(bitmap.width, bitmap.height)) : 1;
+      const outputWidth = contain ? Math.max(1, Math.round(bitmap.width * scale)) : size;
+      const outputHeight = contain ? Math.max(1, Math.round(bitmap.height * scale)) : size;
+      const canvas = document2.createElement("canvas");
+      canvas.width = outputWidth;
+      canvas.height = outputHeight;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Canvas image processing is unavailable.");
+      context.fillStyle = "#fff";
+      context.fillRect(0, 0, outputWidth, outputHeight);
+      context.drawImage(bitmap, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, outputWidth, outputHeight);
+      let quality = Math.max(0.4, Math.min(0.95, Number(options.quality) || 0.82));
+      let mime = "image/webp";
+      let dataURL = canvas.toDataURL(mime, quality);
+      if (!dataURL.startsWith("data:image/webp;base64,")) {
+        mime = "image/jpeg";
+        dataURL = canvas.toDataURL(mime, quality);
+      }
+      while (dataURLBytes(dataURL) > maxOutputBytes && quality > 0.4) {
+        quality = Math.max(0.4, quality - 0.1);
+        dataURL = canvas.toDataURL(mime, quality);
+      }
+      if (!dataURL.startsWith(`data:${mime};base64,`)) throw new Error("Image encoding is unavailable in this browser.");
+      if (dataURLBytes(dataURL) > maxOutputBytes) throw new Error("The processed image is still too large to store.");
+      return { data: dataURL, width: outputWidth, height: outputHeight, bytes: dataURLBytes(dataURL), mime };
+    } finally {
+      bitmap.close?.();
+    }
+  }
+  function createImageAdapter(options = {}) {
+    const document2 = options.document || globalThis.document;
+    const processImage = options.processImage || ((file, command) => processImageUpload(file, { ...command, document: document2 }));
+    const defaultMaxInputBytes = Number(options.maxInputBytes) || DEFAULT_MAX_INPUT_BYTES;
+    return ({ emit, end }) => {
+      let closed = false;
+      return {
+        write(raw) {
+          let command = {};
+          void (async () => {
+            command = JSON.parse(raw);
+            const selector = String(command.selector || "");
+            if (!selector) throw new Error("Image command requires an input selector.");
+            const input = (
+              /** @type {HTMLInputElement|null|undefined} */
+              document2?.querySelector(selector)
+            );
+            const file = input?.files?.[0];
+            if (!file) throw new Error("\u5199\u771F\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002");
+            if (!/^image\/(jpeg|png|webp|gif)$/i.test(String(file.type || ""))) throw new Error("JPEG\u3001PNG\u3001WebP\u3001GIF\u753B\u50CF\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002");
+            const maxInputBytes = Number(command.maxInputBytes) || defaultMaxInputBytes;
+            if (file.size > maxInputBytes) throw new Error("\u753B\u50CF\u30D5\u30A1\u30A4\u30EB\u304C\u5927\u304D\u3059\u304E\u307E\u3059\u3002");
+            const result = await processImage(file, command);
+            if (!closed) emit(JSON.stringify({ type: "image.result", id: String(command.id || ""), name: String(file.name || "image"), ...result }));
+          })().catch((error) => {
+            if (!closed) emit(JSON.stringify({ type: "image.error", id: String(command.id || ""), message: error instanceof Error ? error.message : String(error) }));
+          }).finally(() => {
+            if (!closed) end();
+          });
+        },
+        close() {
+          closed = true;
+        }
+      };
+    };
+  }
+  function installImageAdapter(options = {}) {
+    return registerStream("image", createImageAdapter(options));
   }
 
   // src/auto.js

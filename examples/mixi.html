@@ -6,11 +6,10 @@
 <title>mixi 2005 — PerlUI archive demo</title>
 <link rel="stylesheet" href="../tokens.css">
 <style>
-/* Hallmark · genre: playful · macrostructure: Ecosystem Index · theme: custom 2004-mixi archive
+/* Hallmark · genre: playful · macrostructure: Workbench · theme: custom 2004-mixi archive
  * audience: Japanese web engineers · use: tour a Perl-owned social network · tone: plain, closed, nostalgic
- * theme axes: light / grotesk-sans / warm · enrichment: none · nav: N3 side-rail · footer: Ft4 dense typographic
- * contrast: pass (40–41) · slop: pass (42–45) · honest: pass (46) · chrome: pass (47) · tokens: pass (48)
- * responsive: pass (34, 49–57) · icons: pass (30)
+ * theme axes: light / system-sans / warm · enrichment: period banner · nav: N6 masthead · footer: Ft2 inline
+ * honest: pass (46) · chrome: pass (47) · responsive: pass (34, 49–57) · icons: pass (30)
  */
 /* Hallmark · pre-emit critique: P5 H5 E4 S5 R5 V5 */
 [hidden]{display:none!important}*{box-sizing:border-box}html,body{margin:0;overflow-x:clip}body{min-height:100dvh;background:var(--color-paper);color:var(--color-ink);font:var(--text-base)/1.55 var(--font-body)}.boot{padding:var(--space-xl);text-align:center}.source-toggle{position:fixed;z-index:200;inset-block-end:max(var(--space-sm),env(safe-area-inset-bottom));inset-inline-end:max(var(--space-sm),env(safe-area-inset-right));min-width:44px;min-height:44px;border:var(--rule-thin) solid var(--color-rule-strong);background:var(--color-paper-2);color:var(--color-ink);padding:var(--space-xs) var(--space-sm);font:700 var(--text-sm)/1 var(--font-body);white-space:nowrap;cursor:pointer}.source-dialog{position:fixed;inset:0;margin:0 0 0 auto;width:min(46rem,100%);height:100dvh;max-height:none;border:0;border-inline-start:var(--rule-thin) solid var(--color-code-rule);background:var(--color-graphite);color:var(--color-code);padding:0}.source-dialog::backdrop{background:var(--color-overlay)}.source-head{position:sticky;inset-block-start:0;display:flex;align-items:center;justify-content:space-between;gap:var(--space-md);background:var(--color-ink-2);padding:var(--space-sm) var(--space-md)}.source-head strong{font:700 var(--text-sm)/1.4 var(--font-mono)}.source-actions{display:flex;gap:var(--space-xs)}.source-actions button{min-height:44px;border:var(--rule-thin) solid var(--color-code-rule);background:var(--color-graphite);color:var(--color-code);padding:var(--space-xs) var(--space-sm);font-weight:700;white-space:nowrap;cursor:pointer}.source-actions .run{background:var(--color-accent);color:var(--color-accent-ink);border-color:var(--color-accent)}.source-status{padding:var(--space-xs) var(--space-md);color:var(--color-success);font:var(--text-xs)/1.4 var(--font-mono)}.source-error{margin:0 var(--space-md) var(--space-sm);border:var(--rule-thin) solid var(--color-error);padding:var(--space-sm);white-space:pre-wrap;color:var(--color-code);font:var(--text-xs)/1.45 var(--font-mono)}.source-editor{display:block;width:calc(100% - 2rem);min-height:calc(100dvh - 8rem);margin:0 var(--space-md) var(--space-md);resize:vertical;border:var(--rule-thin) solid var(--color-code-rule);outline:2px solid transparent;outline-offset:1px;background:var(--color-graphite);color:var(--color-code);padding:var(--space-md);font:var(--text-sm)/1.6 var(--font-mono);tab-size:4}.source-toggle:focus-visible,.source-actions button:focus-visible,.source-editor:focus-visible{outline:3px solid var(--color-focus);outline-offset:2px}@media(hover:hover) and (pointer:fine){.source-toggle:hover,.source-actions button:hover{background:var(--color-paper-3);color:var(--color-ink)}}.source-toggle:active,.source-actions button:active{transform:translateY(1px)}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:150ms!important;transition-duration:150ms!important}}
@@ -30,6 +29,11 @@ $route = "/home.pl";
 $now = 0;
 $diary_title = "";
 $diary_body = "";
+$diary_photo1 = "";
+$diary_photo2 = "";
+$diary_photo3 = "";
+$diary_photo_status = "";
+$diary_photo_uploading = 0;
 $comment_body = "";
 $topic_body = "";
 $search_keyword = "Perl";
@@ -46,6 +50,9 @@ $current_community = "";
 $login_email = "perl@example.jp";
 $login_password = "1987";
 $next_diary_id = 1;
+$profile_photo = "";
+$photo_status = "";
+$photo_uploading = 0;
 @users = ();
 @diaries = ();
 @footprints = ();
@@ -62,12 +69,14 @@ sub seed_data {
     %user7 = ("id", "7", "name", "miyagawa", "place", "東京都", "intro", "Perlとフィードとブログをつなぐソフトウェアエンジニア。", "last", "15分以内", "real", "1");
     %user8 = ("id", "8", "name", "naoya", "place", "京都府", "intro", "Webサービスの裏側を作っています。", "last", "40分以内", "real", "1");
     %user9 = ("id", "9", "name", "lestrrat", "place", "東京都", "intro", "PerlとCでWebアプリや検索エンジンを作っています。", "last", "20分以内", "real", "1");
-    @users = (%user1, %user2, %user3, %user4, %user5, %user6, %user7, %user8, %user9);
+    %user10 = ("id", "10", "name", "衛藤バタラ", "place", "東京都", "intro", "mixiの企画と初期開発を担当。サーバを増やしながらサービスを育てています。", "last", "5分以内", "real", "1");
+    @users = (%user1, %user2, %user3, %user4, %user5, %user6, %user7, %user8, %user9, %user10);
 
     %comment1 = ("user", "3", "date", "2005年08月27日 22:18", "body", "イベントをfilehandleで受けるの、CGIっぽくていいですね。");
     @comments1 = (%comment1);
     %diary1 = ("id", "101", "owner", "2", "date", "2005年08月27日 21:42", "title", "ブラウザでPerlが動いた", "body", "HTMLの中にPerlを書いてみた。クリックすると変数が変わって、画面も更新される。DOMを直接触っていないのが不思議。", "comments", @comments1);
-    @comments2 = ();
+    %comment2 = ("user", "5", "date", "2005年08月27日 20:01", "body", "hashだけで画面を切り替えられるの、試してみたいです。");
+    @comments2 = (%comment2);
     %diary2 = ("id", "102", "owner", "3", "date", "2005年08月27日 19:08", "title", "正規表現でルーティング", "body", "PATH_INFOの代わりにlocation.hashを読む。昔のCGIと同じ考え方で画面を切り替えられた。", "comments", @comments2);
     @comments3 = ();
     %diary3 = ("id", "103", "owner", "4", "date", "2005年08月26日 23:51", "title", "サーバを再起動した", "body", "uptimeは惜しかったけれど、カーネル更新のため再起動。次は200日を目指す。", "comments", @comments3);
@@ -83,7 +92,9 @@ sub seed_data {
     %diary8 = ("id", "108", "owner", "8", "date", "2005年08月24日 19:30", "title", "ブックマークの向こう側", "body", "同じページを読んだ人のコメントが並ぶと、URLが会話の場所になる。\n\n※この投稿はデモ用の架空テキストです。", "comments", @comments8);
     @comments9 = ();
     %diary9 = ("id", "109", "owner", "9", "date", "2005年08月24日 02:11", "title", "XSの浅瀬に足を入れる", "body", "PerlからCを呼べると、重い処理だけ別の速度で走らせられる。境界を越えるところがいちばん面白い。\n\n※この投稿はデモ用の架空テキストです。", "comments", @comments9);
-    @diaries = (%diary1, %diary2, %diary3, %diary4, %diary5, %diary6, %diary7, %diary8, %diary9);
+    @comments10 = ();
+    %diary10 = ("id", "110", "owner", "10", "date", "2005年08月23日 03:26", "title", "またサーバを買いに行く", "body", "アクセスが増えるたびに必要なものが見えてくる。今日も秋葉原でサーバを調達して、データセンターへ運ぶ。\n\n※この投稿はデモ用の架空テキストです。", "comments", @comments10);
+    @diaries = (%diary1, %diary2, %diary3, %diary4, %diary5, %diary6, %diary7, %diary8, %diary9, %diary10);
 
     %foot1 = ("owner", "1", "user", "2", "date", "2005年08月27日 22:44");
     %foot2 = ("owner", "1", "user", "3", "date", "2005年08月27日 21:03");
@@ -155,7 +166,9 @@ sub user_link {
 
 sub avatar {
     %avatar_user = find_user($_[0]);
-    begin("img", "class", "avatar " . $_[1], "src", "./assets/mixi/member-" . $avatar_user{id} . ".webp", "alt", $avatar_user{name} . "のプロフィール画像"); end();
+    $avatar_src = "./assets/mixi/member-" . $avatar_user{id} . ".webp";
+    if ($avatar_user{id} eq $current_user && $profile_photo ne "") { $avatar_src = $profile_photo; }
+    begin("img", "class", "avatar " . $_[1], "src", $avatar_src, "alt", $avatar_user{name} . "のプロフィール画像"); end();
 }
 
 sub login { print ROUTE "/home.pl"; }
@@ -170,7 +183,7 @@ sub send_invitation { if ($invite_email ne "") { $invite_sent = 1; } }
 
 sub record_footprint {
     return if $view_user eq $current_user;
-    %new_foot = ("owner", $view_user, "user", $current_user, "date", "UNIX $now");
+    %new_foot = ("owner", $view_user, "user", $current_user, "date", archive_timestamp($now));
     push(@footprints, %new_foot);
     save_footprints();
 }
@@ -185,10 +198,15 @@ sub tick { $now = <CLOCK>; }
 sub create_diary {
     return if $diary_title eq "";
     return if $diary_body eq "";
+    return if $diary_photo_uploading eq 1;
     $new_diary_id = $next_diary_id;
     $next_diary_id++;
     @new_comments = ();
-    %new_diary = ("id", $new_diary_id, "owner", $current_user, "date", "UNIX $now", "title", $diary_title, "body", $diary_body, "comments", @new_comments);
+    @new_photos = ();
+    if ($diary_photo1 ne "") { push(@new_photos, $diary_photo1); }
+    if ($diary_photo2 ne "") { push(@new_photos, $diary_photo2); }
+    if ($diary_photo3 ne "") { push(@new_photos, $diary_photo3); }
+    %new_diary = ("id", $new_diary_id, "owner", $current_user, "date", archive_timestamp($now), "title", $diary_title, "body", $diary_body, "photos", @new_photos, "comments", @new_comments);
     @next_diaries = ();
     push(@next_diaries, %new_diary);
     $next_diary_i = 0;
@@ -197,8 +215,28 @@ sub create_diary {
     save_diaries();
     $diary_title = "";
     $diary_body = "";
+    $diary_photo1 = "";
+    $diary_photo2 = "";
+    $diary_photo3 = "";
+    $diary_photo_status = "";
     print ROUTE "/view_diary.pl?id=$new_diary_id&owner_id=$current_user";
 }
+
+sub select_diary_photo1 { request_diary_photo("diary-1", "#diary-photo-1"); }
+sub select_diary_photo2 { request_diary_photo("diary-2", "#diary-photo-2"); }
+sub select_diary_photo3 { request_diary_photo("diary-3", "#diary-photo-3"); }
+
+sub request_diary_photo {
+    return if $diary_photo_uploading eq 1;
+    $diary_photo_uploading = 1;
+    $diary_photo_status = "写真を処理しています…";
+    %diary_image_command = ("id", $_[0], "selector", $_[1], "fit", "contain", "size", 800, "quality", 0.82, "maxInputBytes", 10485760, "maxOutputBytes", 163840);
+    print IMAGE encode_json(%diary_image_command);
+}
+
+sub remove_diary_photo1 { $diary_photo1 = ""; $diary_photo_status = "写真1を取り消しました。"; }
+sub remove_diary_photo2 { $diary_photo2 = ""; $diary_photo_status = "写真2を取り消しました。"; }
+sub remove_diary_photo3 { $diary_photo3 = ""; $diary_photo_status = "写真3を取り消しました。"; }
 
 sub add_comment {
     return if $comment_body eq "";
@@ -209,7 +247,7 @@ sub add_comment {
         %comment_diary = $diaries[$comment_i];
         if ($comment_diary{id} eq $current_diary) {
             @diary_comments = $comment_diary{comments};
-            %new_comment = ("user", $current_user, "date", "UNIX $now", "body", $comment_body);
+            %new_comment = ("user", $current_user, "date", archive_timestamp($now), "body", $comment_body);
             push(@diary_comments, %new_comment);
             $comment_diary{comments} = @diary_comments;
             $diaries[$comment_i] = %comment_diary;
@@ -229,7 +267,7 @@ sub add_topic_reply {
         %reply_comm = $communities[$comm_i];
         if ($reply_comm{id} eq $current_community) {
             @reply_topics = $reply_comm{topics};
-            %new_topic = ("id", $now, "title", "Re: コミュニティの話題", "author", $current_user, "date", "UNIX $now", "body", $topic_body);
+            %new_topic = ("id", $now, "title", "Re: コミュニティの話題", "author", $current_user, "date", archive_timestamp($now), "body", $topic_body);
             @next_topics = ();
             push(@next_topics, %new_topic);
             $next_topic_i = 0;
@@ -246,7 +284,10 @@ sub add_topic_reply {
 
 sub reset_demo {
     seed_data(); refresh_next_diary_id(); save_diaries(); save_footprints(); save_communities();
-    $diary_title = ""; $diary_body = ""; $comment_body = ""; $topic_body = ""; $search_keyword = "Perl"; $search_result_message = ""; $friend_request_sent = 0; $invite_sent = 0;
+    $profile_photo = "";
+    open PROFILE_PHOTO_OUT, ">storage:local:perlscript-web/mixi/profile-photo-v1";
+    close(PROFILE_PHOTO_OUT);
+    $diary_title = ""; $diary_body = ""; $diary_photo1 = ""; $diary_photo2 = ""; $diary_photo3 = ""; $diary_photo_status = ""; $diary_photo_uploading = 0; $comment_body = ""; $topic_body = ""; $search_keyword = "Perl"; $search_result_message = ""; $friend_request_sent = 0; $invite_sent = 0;
     print ROUTE "/home.pl";
 }
 
@@ -254,7 +295,7 @@ sub site_header {
     begin("header", "class", "mixi-header");
     begin("div", "class", "brand-row");
     begin("a", "class", "mixi-logo", "href", "#/home.pl"); text("mixi"); begin("small"); text("β version"); end(); end();
-    begin("div", "class", "brand-banner"); begin("small"); text("COMMUNITY ENTERTAINMENT mixi"); end(); begin("strong"); text("ニッポンの輪を広げよう！"); end(); end();
+    begin("div", "class", "brand-banner", "role", "img", "aria-label", "COMMUNITY ENTERTAINMENT mixi ニッポンの輪を広げよう"); begin("small"); text("COMMUNITY ENTERTAINMENT mixi"); end(); begin("strong"); text("ニッポンの輪を広げよう"); end(); end();
     end();
     begin("nav", "class", "global-nav", "aria-label", "メインメニュー");
     begin("a", "href", "#/home.pl"); text("ホーム"); end();
@@ -313,9 +354,9 @@ sub left_rail {
     if ($personal_rail eq 1) {
         begin("section", "class", "rail-box profile-mini");
         avatar($rail_user, "avatar-large");
-        begin("strong"); text($rail_profile{name}); end();
-        begin("a", "href", "#/show_friend.pl?id=" . $rail_profile{id}); text("プロフィール確認"); end();
         if ($rail_profile{id} eq $current_user) { begin("a", "href", "#/edit_photo.pl"); text("写真を編集"); end(); }
+        begin("a", "href", "#/show_friend.pl?id=" . $rail_profile{id}); text("プロフィール確認"); end();
+        begin("strong"); text($rail_profile{name} . "（" . $rail_profile{id} . "）"); end();
         end();
         begin("section", "class", "rail-box"); begin("h2"); text($rail_profile{name} . "さんのマイミクシィ一覧"); end();
         begin("div", "class", "friend-grid");
@@ -338,12 +379,10 @@ sub left_rail {
 sub right_rail {
     begin("aside", "class", "right-rail");
     begin("section", "class", "notice-box"); begin("h2"); text("08/27(土)"); end();
-    begin("a", "href", "#/list_message.pl"); text("新着メッセージ 2件"); end();
-    begin("a", "href", "#/show_log.pl"); text("新しい足あと"); end();
-    begin("a", "href", "#/calendar.pl"); text("今月の予定"); end();
-    begin("a", "href", "#/list_community.pl"); text("コミュニティ更新"); end();
+    begin("a", "class", "notice-birthday", "href", "#/calendar.pl"); text("誕生日一覧"); end();
+    begin("a", "class", "notice-event", "href", "#/calendar.pl"); text("イベント一覧"); end();
+    begin("a", "class", "notice-weather", "href", "#/calendar.pl"); text("今週の天気"); end();
     end();
-    begin("section", "class", "notice-box archive-note"); begin("h2"); text("このデモについて"); end(); begin("p"); text("2004年の画面構造を参考にした架空データのデモです。"); end(); end();
     end();
 }
 
@@ -369,10 +408,43 @@ sub diary_row {
     %row_diary = $_[0];
     %row_owner = find_user($row_diary{owner});
     begin("article", "class", "update-row"); key($row_diary{id});
-    begin("div", "class", "date-cell"); text($row_diary{date}); end();
+    begin("div", "class", "date-cell"); text(display_timestamp($row_diary{date})); end();
     begin("div", "class", "update-body");
     begin("a", "class", "entry-link", "href", "#/view_diary.pl?id=" . $row_diary{id} . "&owner_id=" . $row_diary{owner}); text($row_diary{title}); end();
     begin("span"); text("（" . $row_owner{name} . "）"); end();
+    end(); end();
+}
+
+sub pad2 {
+    if ($_[0] < 10) { return "0" . $_[0]; }
+    return $_[0];
+}
+
+sub archive_timestamp {
+    @archive_time = localtime($_[0]);
+    return "2005年08月27日 " . pad2($archive_time[2]) . ":" . pad2($archive_time[1]);
+}
+
+sub display_timestamp {
+    $display_source = $_[0];
+    if ($display_source =~ /^UNIX ([0-9]+)$/) { return archive_timestamp($1); }
+    return $display_source;
+}
+
+sub short_date {
+    $short_source = display_timestamp($_[0]);
+    if ($short_source =~ /^2005年([0-9][0-9]月[0-9][0-9]日)/) { return $1; }
+    return $short_source;
+}
+
+sub home_diary_row {
+    %home_row_diary = $_[0];
+    %home_row_owner = find_user($home_row_diary{owner});
+    begin("article", "class", "update-row update-diary"); key($home_row_diary{id});
+    begin("div", "class", "date-cell"); text(short_date($home_row_diary{date})); end();
+    begin("div", "class", "update-body");
+    begin("a", "class", "entry-link", "href", "#/view_diary.pl?id=" . $home_row_diary{id} . "&owner_id=" . $home_row_diary{owner}); text($home_row_diary{title}); end();
+    begin("span"); text("（" . $home_row_owner{name} . "）"); end();
     end(); end();
 }
 
@@ -430,19 +502,49 @@ sub register_view {
 }
 
 sub home_view {
-    shell_start();
-    begin("section", "class", "announcement"); begin("strong"); text("運営者からのお知らせ"); end(); begin("a", "href", "#/home.pl"); text("招待制SNSをPerlUIで再現しています"); end(); end();
+    site_header();
+    begin("main", "class", "mixi-layout home-layout");
+    begin("section", "class", "announcement");
+    begin("strong"); begin("span"); text("機能制限に関する"); end(); begin("span"); text("お知らせ"); end(); end();
+    begin("p"); text("あなたの友人を mixi に招待しよう！"); end();
+    begin("div", "class", "announcement-links"); begin("a", "href", "#/invite.pl"); text("友人を招待"); end(); begin("a", "href", "#/search_community.pl"); text("コミュニティを探す"); end(); end();
+    end();
+    left_rail();
+    begin("section", "class", "main-column");
     panel_title("最新情報");
-    begin("section", "class", "feed-section"); begin("h2"); text("マイミクシィ最新日記"); end();
+
+    begin("section", "class", "home-feed-table");
+    begin("section", "class", "home-feed-group home-diaries"); begin("h2", "class", "home-feed-label"); text("マイミクシィ最新日記"); end(); begin("div", "class", "home-feed-body");
     $home_i = 0;
-    while ($home_i <= $#diaries) { diary_row($diaries[$home_i]); $home_i++; }
-    begin("p", "class", "more-link"); begin("a", "href", "#/list_diary.pl?id=1"); text("日記をもっと読む"); end(); end();
-    end();
-    begin("section", "class", "feed-section"); begin("h2"); text("コミュニティ最新書き込み"); end();
+    while ($home_i <= $#diaries && $home_i < 5) { home_diary_row($diaries[$home_i]); $home_i++; }
+    begin("p", "class", "more-link"); begin("a", "href", "#/list_diary.pl?id=1"); text("もっと読む"); end(); end();
+    end(); end();
+
+    begin("section", "class", "home-feed-group home-comments"); begin("h2", "class", "home-feed-label"); text("日記コメント記入履歴"); end(); begin("div", "class", "home-feed-body");
+    $comment_diary_i = 0;
+    while ($comment_diary_i <= $#diaries && $comment_diary_i < 5) {
+        %commented_diary = $diaries[$comment_diary_i]; @home_comments = $commented_diary{comments};
+        if ($#home_comments >= 0) { %home_comment = $home_comments[0]; %home_commenter = find_user($home_comment{user}); begin("div", "class", "update-row update-comment"); begin("div", "class", "date-cell"); text(short_date($home_comment{date})); end(); begin("div", "class", "update-body"); begin("a", "href", "#/view_diary.pl?id=" . $commented_diary{id} . "&owner_id=" . $commented_diary{owner}); text("Re: " . $commented_diary{title}); end(); begin("span"); text("（" . $home_commenter{name} . "）"); end(); end(); end(); }
+        $comment_diary_i++;
+    }
+    begin("p", "class", "more-link"); begin("a", "href", "#/list_diary.pl?id=1"); text("もっと読む"); end(); end();
+    end(); end();
+
+    begin("section", "class", "home-feed-group home-communities"); begin("h2", "class", "home-feed-label"); text("コミュニティ最新書き込み"); end(); begin("div", "class", "home-feed-body");
     $home_comm_i = 0;
-    while ($home_comm_i <= $#communities) { %home_comm = $communities[$home_comm_i]; @home_topics = $home_comm{topics}; %home_topic = $home_topics[0]; begin("div", "class", "update-row"); begin("div", "class", "date-cell"); text($home_topic{date}); end(); begin("div", "class", "update-body"); begin("a", "href", "#/view_community.pl?id=" . $home_comm{id}); text($home_topic{title}); end(); text("（" . $home_comm{name} . "）"); end(); end(); $home_comm_i++; }
+    while ($home_comm_i <= $#communities) { %home_comm = $communities[$home_comm_i]; @home_topics = $home_comm{topics}; $home_topic_i = 0; while ($home_topic_i <= $#home_topics) { %home_topic = $home_topics[$home_topic_i]; begin("div", "class", "update-row update-community"); begin("div", "class", "date-cell"); text(short_date($home_topic{date})); end(); begin("div", "class", "update-body"); begin("a", "href", "#/view_community.pl?id=" . $home_comm{id}); text($home_topic{title}); end(); begin("span"); text("（" . $home_comm{name} . "）"); end(); end(); end(); $home_topic_i++; } $home_comm_i++; }
+    begin("p", "class", "more-link"); begin("a", "href", "#/list_community.pl"); text("もっと読む"); end(); end();
+    end(); end();
+
+    begin("section", "class", "home-feed-group home-reviews"); begin("h2", "class", "home-feed-label"); text("マイミクシィ最新レビュー"); end(); begin("div", "class", "home-feed-body");
+    begin("div", "class", "update-row update-review"); begin("div", "class", "date-cell"); text("08月24日"); end(); begin("div", "class", "update-body"); begin("a", "href", "#/review.pl"); text("Programming Perl 第3版"); end(); begin("span"); text("（Dan Kogai）"); end(); end(); end();
+    begin("div", "class", "update-row update-review"); begin("div", "class", "date-cell"); text("08月23日"); end(); begin("div", "class", "update-body"); begin("a", "href", "#/review.pl"); text("Perl Cookbook"); end(); begin("span"); text("（nobodyさん）"); end(); end(); end();
+    begin("p", "class", "more-link"); begin("a", "href", "#/review.pl"); text("もっと読む"); end(); end();
+    end(); end();
     end();
-    shell_end();
+    end();
+    right_rail();
+    end();
 }
 
 sub profile_view {
@@ -496,12 +598,13 @@ sub add_diary_view {
     begin("form", "class", "old-form"); on("submit", "create_diary");
     begin("label"); begin("span"); text("タイトル"); end(); begin("input", "id", "diary-title", "aria-required", "true", "aria-describedby", "diary-help"); bind("value", "diary_title"); end(); end();
     begin("label"); begin("span"); text("本文"); end(); begin("textarea", "id", "diary-body", "rows", "10", "aria-required", "true", "aria-describedby", "diary-help"); bind("value", "diary_body"); end(); end();
-    begin("label"); begin("span"); text("写真1"); end(); begin("input", "type", "file", "accept", "image/*", "aria-label", "日記の写真1"); end(); end();
-    begin("label"); begin("span"); text("写真2"); end(); begin("input", "type", "file", "accept", "image/*", "aria-label", "日記の写真2"); end(); end();
-    begin("label"); begin("span"); text("写真3"); end(); begin("input", "type", "file", "accept", "image/*", "aria-label", "日記の写真3"); end(); end();
+    begin("label"); begin("span"); text("写真1"); end(); begin("div", "class", "diary-photo-field"); begin("input", "id", "diary-photo-1", "type", "file", "accept", "image/jpeg,image/png,image/webp,image/gif", "aria-label", "日記の写真1", "disabled", $diary_photo_uploading); on("change", "select_diary_photo1"); end(); if ($diary_photo1 ne "") { begin("img", "src", $diary_photo1, "alt", "日記の写真1プレビュー"); end(); begin("button", "type", "button"); on("click", "remove_diary_photo1"); text("写真1を取り消す"); end(); } end(); end();
+    begin("label"); begin("span"); text("写真2"); end(); begin("div", "class", "diary-photo-field"); begin("input", "id", "diary-photo-2", "type", "file", "accept", "image/jpeg,image/png,image/webp,image/gif", "aria-label", "日記の写真2", "disabled", $diary_photo_uploading); on("change", "select_diary_photo2"); end(); if ($diary_photo2 ne "") { begin("img", "src", $diary_photo2, "alt", "日記の写真2プレビュー"); end(); begin("button", "type", "button"); on("click", "remove_diary_photo2"); text("写真2を取り消す"); end(); } end(); end();
+    begin("label"); begin("span"); text("写真3"); end(); begin("div", "class", "diary-photo-field"); begin("input", "id", "diary-photo-3", "type", "file", "accept", "image/jpeg,image/png,image/webp,image/gif", "aria-label", "日記の写真3", "disabled", $diary_photo_uploading); on("change", "select_diary_photo3"); end(); if ($diary_photo3 ne "") { begin("img", "src", $diary_photo3, "alt", "日記の写真3プレビュー"); end(); begin("button", "type", "button"); on("click", "remove_diary_photo3"); text("写真3を取り消す"); end(); } end(); end();
     begin("label"); begin("span"); text("公開範囲"); end(); begin("div", "class", "inline-options"); text("● マイミクシィまで　○ 全体に公開"); end(); end();
-    begin("p", "id", "diary-help", "class", "form-help"); text("タイトルと本文を入力してください。写真は3枚まで掲載できます。"); end();
-    begin("button", "type", "submit"); text("日記を公開する"); end();
+    begin("p", "id", "diary-help", "class", "form-help"); text("タイトルと本文を入力してください。JPEG、PNG、WebP、GIFの写真を3枚まで掲載できます。"); end();
+    if ($diary_photo_status ne "") { begin("p", "class", "diary-photo-status", "role", "status"); text($diary_photo_status); end(); }
+    begin("button", "type", "submit", "disabled", $diary_photo_uploading); text("日記を公開する"); end();
     end(); shell_end();
 }
 
@@ -516,13 +619,13 @@ sub diary_view {
             %viewed_owner = find_user($viewed_diary{owner});
             panel_title($viewed_diary{title});
             begin("article", "class", "diary-entry diary-entry-grid");
-            begin("div", "class", "diary-date-column"); begin("strong"); text($viewed_diary{date}); end(); end();
-            begin("div", "class", "diary-content-column"); begin("p", "class", "entry-meta"); user_link($viewed_diary{owner}); text("さんの日記"); end(); begin("p", "class", "entry-body"); text($viewed_diary{body}); end(); end();
+            begin("div", "class", "diary-date-column"); begin("strong"); text(display_timestamp($viewed_diary{date})); end(); end();
+            begin("div", "class", "diary-content-column"); begin("p", "class", "entry-meta"); user_link($viewed_diary{owner}); text("さんの日記"); end(); begin("p", "class", "entry-body"); text($viewed_diary{body}); end(); @view_photos = (); if ($viewed_diary{photos}) { @view_photos = $viewed_diary{photos}; } if ($#view_photos >= 0) { begin("div", "class", "diary-photos", "role", "group", "aria-label", "日記の添付写真"); $view_photo_i = 0; while ($view_photo_i <= $#view_photos) { begin("img", "src", $view_photos[$view_photo_i], "alt", $viewed_diary{title} . "の写真" . ($view_photo_i + 1)); end(); $view_photo_i++; } end(); } end();
             end();
             begin("section", "class", "comments"); begin("h2"); text("コメント"); end();
             @view_comments = $viewed_diary{comments};
             $view_comment_i = 0;
-            while ($view_comment_i <= $#view_comments) { %view_comment = $view_comments[$view_comment_i]; begin("article", "class", "comment-row"); avatar($view_comment{user}, "avatar-small"); begin("div"); begin("p", "class", "comment-meta"); user_link($view_comment{user}); text("　" . $view_comment{date}); end(); begin("p"); text($view_comment{body}); end(); end(); end(); $view_comment_i++; }
+            while ($view_comment_i <= $#view_comments) { %view_comment = $view_comments[$view_comment_i]; begin("article", "class", "comment-row"); avatar($view_comment{user}, "avatar-small"); begin("div"); begin("p", "class", "comment-meta"); user_link($view_comment{user}); text("　" . display_timestamp($view_comment{date})); end(); begin("p"); text($view_comment{body}); end(); end(); end(); $view_comment_i++; }
             begin("form", "class", "old-form compact-form"); on("submit", "add_comment"); begin("label"); begin("span"); text("コメントを書く"); end(); begin("textarea", "id", "comment-body", "rows", "4", "aria-required", "true", "aria-describedby", "comment-help"); bind("value", "comment_body"); end(); end(); begin("p", "id", "comment-help", "class", "form-help"); text("日記の作者とマイミクシィに公開されます。"); end(); begin("button", "type", "submit"); text("コメントする"); end(); end();
             end();
         }
@@ -540,7 +643,7 @@ sub footprints_view {
     begin("p", "class", "access-count"); text("ページ全体のアクセス数：" . (3505 + $own_foot_count) . " アクセス"); end();
     begin("section", "class", "footprint-list");
     $foot_i = $#footprints;
-    while ($foot_i >= 0) { %foot = $footprints[$foot_i]; if ($foot{owner} eq $current_user) { begin("div", "class", "footprint-row"); begin("span"); text($foot{date}); end(); user_link($foot{user}); end(); } $foot_i--; }
+    while ($foot_i >= 0) { %foot = $footprints[$foot_i]; if ($foot{owner} eq $current_user) { begin("div", "class", "footprint-row"); begin("span"); text(display_timestamp($foot{date})); end(); user_link($foot{user}); end(); } $foot_i--; }
     end(); shell_end();
 }
 
@@ -573,7 +676,7 @@ sub community_view {
             end();
             begin("section", "class", "topic-list"); begin("h2"); text("新着のトピック／書き込み"); end();
             @view_topics = $viewed_comm{topics}; $topic_i = 0;
-            while ($topic_i <= $#view_topics) { %topic = $view_topics[$topic_i]; begin("article", "class", "topic-row"); begin("strong"); text($topic{title}); end(); begin("p"); text($topic{body}); end(); begin("small"); user_link($topic{author}); text("　" . $topic{date}); end(); end(); $topic_i++; }
+            while ($topic_i <= $#view_topics) { %topic = $view_topics[$topic_i]; begin("article", "class", "topic-row"); begin("strong"); text($topic{title}); end(); begin("p"); text($topic{body}); end(); begin("small"); user_link($topic{author}); text("　" . display_timestamp($topic{date})); end(); end(); $topic_i++; }
             begin("p", "class", "more-link"); begin("a", "href", "#/view_community.pl?id=" . $viewed_comm{id}); text("もっと読む"); end(); text("　"); begin("a", "href", "#/view_community.pl?id=" . $viewed_comm{id}); text("トピックを作成"); end(); end();
             end();
             begin("form", "class", "old-form compact-form"); on("submit", "add_topic_reply"); begin("label"); begin("span"); text("このコミュニティに書き込む"); end(); begin("textarea", "id", "topic-body", "rows", "4", "aria-required", "true", "aria-describedby", "topic-help"); bind("value", "topic_body"); end(); end(); begin("p", "id", "topic-help", "class", "form-help"); text("参加メンバー全員に公開されます。"); end(); begin("button", "type", "submit"); text("書き込む"); end(); end();
@@ -648,13 +751,46 @@ sub edit_profile_view {
 sub edit_photo_view {
     shell_start(); panel_title("写真を編集する");
     begin("section", "class", "photo-editor");
-    begin("div"); avatar("1", "avatar-xlarge"); begin("a", "href", "#/edit_photo.pl"); text("［削除｜メイン写真］"); end(); end();
-    begin("div"); avatar("6", "avatar-xlarge"); begin("a", "href", "#/edit_photo.pl"); text("［削除｜メイン写真にする］"); end(); end();
+    begin("div"); avatar("1", "avatar-xlarge"); begin("strong"); text("メイン写真"); end(); end();
+    begin("div", "class", "no-photo"); text("NO PHOTO"); end();
     begin("div", "class", "no-photo"); text("NO PHOTO"); end();
     end();
-    begin("form", "class", "photo-upload"); begin("input", "type", "file", "aria-label", "アップロードする写真"); end(); begin("button", "type", "button"); text("写真をアップロードする"); end(); end();
-    begin("p", "class", "form-help"); text("写真は最大3枚まで掲載できます。著作権・肖像権を侵害する写真は掲載しないでください。"); end();
+    begin("form", "class", "photo-upload"); on("submit", "upload_profile_photo"); begin("input", "id", "profile-photo-input", "type", "file", "accept", "image/jpeg,image/png,image/webp,image/gif", "aria-label", "アップロードする写真"); end(); begin("button", "type", "submit", "disabled", $photo_uploading); text("写真をアップロードする"); end(); if ($profile_photo ne "") { begin("button", "type", "button"); on("click", "reset_profile_photo"); text("元の写真に戻す"); end(); } end();
+    if ($photo_status ne "") { begin("p", "class", "photo-status", "role", "status"); text($photo_status); end(); }
+    begin("p", "class", "form-help"); text("JPEG、PNG、WebP、GIFに対応。中央を正方形に切り抜き、512×512のWebP（未対応ブラウザではJPEG）としてこのブラウザに保存します。"); end();
     shell_end();
+}
+
+sub upload_profile_photo {
+    $photo_status = "画像を処理しています…";
+    $photo_uploading = 1;
+    %image_command = ("id", "profile", "selector", "#profile-photo-input", "size", 512, "quality", 0.82, "maxInputBytes", 10485760, "maxOutputBytes", 256000);
+    print IMAGE encode_json(%image_command);
+}
+
+sub receive_image {
+    return if eof(IMAGE);
+    %image_message = decode_json(<IMAGE>);
+    if ($image_message{type} eq "image.result" && $image_message{id} eq "profile") {
+        $profile_photo = $image_message{data};
+        open PROFILE_PHOTO_OUT, ">storage:local:perlscript-web/mixi/profile-photo-v1";
+        print PROFILE_PHOTO_OUT $profile_photo;
+        close(PROFILE_PHOTO_OUT);
+        $photo_status = "プロフィール写真を変更しました。";
+        $photo_uploading = 0;
+    }
+    if ($image_message{type} eq "image.result" && $image_message{id} eq "diary-1") { $diary_photo1 = $image_message{data}; $diary_photo_status = "写真1を追加しました。"; $diary_photo_uploading = 0; }
+    if ($image_message{type} eq "image.result" && $image_message{id} eq "diary-2") { $diary_photo2 = $image_message{data}; $diary_photo_status = "写真2を追加しました。"; $diary_photo_uploading = 0; }
+    if ($image_message{type} eq "image.result" && $image_message{id} eq "diary-3") { $diary_photo3 = $image_message{data}; $diary_photo_status = "写真3を追加しました。"; $diary_photo_uploading = 0; }
+    if ($image_message{type} eq "image.error" && $image_message{id} eq "profile") { $photo_status = "写真を変更できません: " . $image_message{message}; $photo_uploading = 0; }
+    if ($image_message{type} eq "image.error" && $image_message{id} ne "profile") { $diary_photo_status = "写真を追加できません: " . $image_message{message}; $diary_photo_uploading = 0; }
+}
+
+sub reset_profile_photo {
+    $profile_photo = "";
+    open PROFILE_PHOTO_OUT, ">storage:local:perlscript-web/mixi/profile-photo-v1";
+    close(PROFILE_PHOTO_OUT);
+    $photo_status = "元のプロフィール写真に戻しました。";
 }
 
 sub account_view {
@@ -730,19 +866,27 @@ sub view {
 open STYLE, ">css:mixi-2005";
 print STYLE '
 .mixi-page{--mixi-orange:#f69223;--mixi-orange-dark:#c87820;--mixi-gold:#d3b16d;--mixi-beige:#f3ddb6;--mixi-cream:#fff4e0;--mixi-pale:#fdf9f2;--mixi-peach:#ffd8af;--mixi-brown:#877065;--mixi-link:#258fb8;min-height:100dvh;overflow-x:auto;background:#fff;color:#333;padding:0 0 36px;font:10pt/1.35 "MS PGothic","ＭＳ Ｐゴシック","Hiragino Kaku Gothic ProN",sans-serif}
-.mixi-page *{box-sizing:border-box}.mixi-page a,.mixi-page a:visited{display:inline-block;max-width:100%;overflow:hidden;color:var(--mixi-link);text-decoration:underline;text-overflow:ellipsis;vertical-align:bottom;white-space:nowrap}.mixi-page button{white-space:nowrap}.mixi-page a:hover{color:#996600;background:#fff4e0;text-decoration:none}.mixi-page a:focus-visible,.mixi-page button:focus-visible,.mixi-page input:focus-visible,.mixi-page textarea:focus-visible{outline:2px solid #035ec4;outline-offset:1px}.mixi-page button,.mixi-page input,.mixi-page textarea{font:inherit}
+.mixi-page *{box-sizing:border-box}.mixi-page a,.mixi-page a:visited{display:inline-block;color:var(--mixi-link);text-decoration:underline;vertical-align:bottom}.mixi-page button{white-space:nowrap}.mixi-page a:hover{color:#996600;background:#fff4e0;text-decoration:none}.mixi-page a:focus-visible,.mixi-page button:focus-visible,.mixi-page input:focus-visible,.mixi-page textarea:focus-visible{outline:2px solid #035ec4;outline-offset:1px}.mixi-page button,.mixi-page input,.mixi-page textarea{font:inherit}
 .mixi-header{width:720px;margin:0;border:0;background:#fff}.brand-row{display:grid;grid-template-columns:247px 473px;height:96px;border-bottom:1px dotted var(--mixi-gold);background:#fff}.mixi-logo{position:relative;display:flex;align-items:end;gap:6px;height:96px;padding:20px 18px 11px;border-top:6px solid var(--mixi-orange);border-radius:58% 0 0;color:#332a27!important;background:linear-gradient(180deg,#fff 0 64%,#fff7eb);font:58px/1 Georgia,"Times New Roman",serif;letter-spacing:-5px;text-decoration:none!important}.mixi-logo small{margin-bottom:5px;border-radius:12px;background:var(--mixi-orange);color:#fff;font:bold 10px/1 Arial,sans-serif;letter-spacing:0;padding:5px 8px}.brand-banner{display:flex;flex-direction:column;align-items:center;justify-content:center;border-top:7px solid var(--mixi-orange);background:#f9a12c url("./assets/mixi/header-banner-v1.webp") center top/468px 60px no-repeat;color:#8e6128;text-shadow:0 1px #fff}.brand-banner small{font:bold 9px/1.4 Arial,sans-serif;letter-spacing:4px}.brand-banner strong{margin-top:7px;font:bold 20px/1.1 "MS PGothic","ＭＳ Ｐゴシック",sans-serif}
 .global-nav{display:grid;grid-template-columns:repeat(8,1fr);width:473px;height:29px;margin:-30px 0 1px 247px;padding:0 8px;position:relative;z-index:1}.global-nav a{display:flex;align-items:center;justify-content:center;border-right:1px solid #ffd28d;color:#fff!important;background:linear-gradient(#f9a943,#ed8b1d);font:bold 10px/1 sans-serif;text-decoration:none}.global-nav a:first-child{border-left:1px solid #ffd28d}.global-nav a:hover{background:#c87820}.utility-nav{display:flex;align-items:center;justify-content:center;width:720px;height:26px;overflow:hidden;border-block:1px dotted var(--mixi-gold);background:#fff;white-space:nowrap}.utility-nav a{display:block;padding:2px 10px;border-right:1px solid #e4c68e;color:#5d5046;font-size:10px;text-decoration:none}.utility-nav a:first-child{border-left:1px solid #e4c68e}
 .mixi-layout{display:grid;grid-template-columns:164px minmax(0,408px) 132px;gap:8px;width:720px;margin:7px 0}.mixi-layout.inner-layout{grid-template-columns:164px minmax(0,548px)}.inner-layout .right-rail{display:none}.left-rail,.right-rail,.main-column{min-width:0}.rail-box,.notice-box,.feed-section,.diary-list,.profile-main,.diary-entry,.comments,.footprint-list,.community-grid,.message-list,.topic-list,.community-head{margin:0 0 7px;border:1px solid #e5a34c;border-radius:6px;background:#fff;padding:6px;box-shadow:inset 0 0 0 3px #fff4e0}.rail-box h2,.notice-box h2,.feed-section h2,.comments h2,.topic-list h2{margin:-6px -6px 6px;padding:3px 7px;border-radius:5px 5px 0 0;background:linear-gradient(#c6b394,#8d7960);color:#fff;font:bold 11px/1.3 sans-serif}.profile-mini{display:grid;justify-items:center;gap:4px;background:#ffd08a;text-align:center}.avatar{display:block;flex:0 0 auto;border:1px solid #c79550;background:#fff;object-fit:cover;font-size:0}.avatar-small{width:44px;height:44px}.avatar-large{width:116px;height:116px}.avatar-xlarge{width:126px;height:126px}.friend-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.friend-grid>a{display:grid;justify-items:center;gap:2px;min-width:0;text-align:center;font-size:10px}.friend-grid span{max-width:100%;overflow:hidden;text-overflow:ellipsis}.notice-box{display:grid;gap:3px;background:#fff4e0}.notice-box>a::before,.recent-box>a::before{content:"◇";color:#f69223}.archive-note p{margin:0;font-size:10px}.calendar-box{text-align:center}.calendar-week{color:#c66420;font-size:10px}.calendar-days{margin-top:3px;color:#4f4a43;font-size:10px;line-height:1.7;word-break:break-all}.recent-box{display:grid;gap:3px}.recent-box>a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px}
 .panel-title{min-width:0;margin:0 0 7px;border:1px solid #a98652;border-radius:6px;background:linear-gradient(#d6c5a9,#967d60);color:#fff;padding:4px 9px;font:bold 12px/1.3 sans-serif;overflow-wrap:anywhere}.announcement{display:grid;grid-template-columns:120px 1fr;gap:5px;margin:0 0 7px;border:1px solid #e5a34c;background:#fff4e0;padding:7px}.announcement strong{color:#d76520}.feed-section{margin-bottom:7px}.update-row{display:grid;grid-template-columns:108px minmax(0,1fr);gap:5px;border-bottom:1px solid #e5c994;padding:3px 4px}.date-cell{grid-column:1;color:#6a5b4d;font-size:10px;font-variant-numeric:tabular-nums}.date-cell::before{content:"◆";margin-right:3px;color:#e26727}.update-body{grid-column:2;min-width:0}.entry-link{font-weight:normal}.update-body span{color:#5d5046;font-size:10px}.more-link,.action-line{margin:5px 2px 0;text-align:right}.old-button,.old-form button{display:inline-flex;align-items:center;justify-content:center;min-height:20px;border:1px solid #6b5c52;background:linear-gradient(#8e8178,#4d403a);color:#fff!important;padding:2px 12px;text-decoration:none!important;font-weight:bold;cursor:pointer}
 .profile-main{display:grid;grid-template-columns:138px minmax(0,1fr);align-items:start;gap:7px;background:#ffd08a}.profile-data{display:grid;grid-template-columns:72px minmax(0,1fr);width:100%;margin:0;border:1px solid #e5a34c;background:#fff}.profile-data dt,.profile-data dd{margin:0;border-bottom:1px solid #e5a34c;padding:4px}.profile-data dt{background:#fff4e0;color:#8e6128;font-weight:bold}.profile-actions{margin:6px;text-align:center}.profile-latest{margin-top:8px}.profile-friends{margin-top:8px}.profile-friends .friend-grid{grid-template-columns:repeat(6,minmax(0,1fr))}.reenactment-note{grid-column:1/-1;margin:0;border:1px dotted #c89d61;background:#fff4e0;padding:5px;color:#6b5a4d;font-size:10px}
-.old-form{display:grid;gap:0;border:6px solid #f3ddb6;border-radius:6px;background:#fff;padding:0}.old-form label{display:grid;grid-template-columns:112px minmax(0,1fr);align-items:stretch;border-bottom:1px solid #e5a34c;font-weight:bold}.old-form label>span{display:flex;align-items:center;background:#fff4e0;color:#8e6128;padding:7px}.old-form input,.old-form textarea{width:calc(100% - 8px);margin:4px;border:1px solid #f2ddb7;background:#fdf9f2;color:#333;padding:3px;font:10pt/1.35 "MS PGothic","ＭＳ Ｐゴシック",sans-serif}.old-form input{min-height:22px}.old-form textarea{min-height:88px;resize:vertical}.form-help{min-height:18px;margin:0;padding:4px 8px;color:#6b5a4d;font-size:10px}.old-form button{justify-self:center;margin:5px}.diary-entry{background:#fff}.entry-meta{margin:0 0 8px;border-bottom:1px solid #e5a34c;background:#fff4e0;padding:4px;color:#6b5a4d;font-size:10px}.entry-body{min-height:140px;padding:6px;white-space:pre-wrap;overflow-wrap:anywhere}.comments{margin-top:7px;background:#fff4e0}.comment-row,.message-row{display:flex;gap:7px;border-bottom:1px solid #e5c994;background:#fff;padding:6px}.comment-row p,.message-row p,.message-row h2{margin:0 0 4px}.message-row h2{font-size:12px}.comment-meta{color:#6b5a4d;font-size:10px}.compact-form{margin-top:7px}.explanation{border:1px solid #e5a34c;background:#fff4e0;padding:8px}.access-count{text-align:center;font-weight:bold;font-variant-numeric:tabular-nums}.footprint-row{display:grid;grid-template-columns:190px minmax(0,1fr);gap:8px;border-bottom:1px solid #e5c994;padding:5px;font-variant-numeric:tabular-nums}.community-grid{display:grid;gap:5px}.community-card,.community-head{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;border-bottom:1px solid #e5c994;padding:7px}.community-card h2,.community-card p{margin:0 0 4px}.community-card h2{font-size:12px}.community-mark{display:grid;place-items:center;width:64px;height:64px;border:1px solid #c79550;background:#fff4e0;color:#b56624;font:bold 11px/1 sans-serif}.large-mark{width:90px;height:90px;font-size:13px}.topic-list{margin-top:7px}.topic-row{border-bottom:1px solid #e5c994;padding:7px}.topic-row p{margin:4px 0}
+.old-form{display:grid;gap:0;border:6px solid #f3ddb6;border-radius:6px;background:#fff;padding:0}.old-form label{display:grid;grid-template-columns:112px minmax(0,1fr);align-items:stretch;border-bottom:1px solid #e5a34c;font-weight:bold}.old-form label>span{display:flex;align-items:center;background:#fff4e0;color:#8e6128;padding:7px}.old-form input,.old-form textarea{width:calc(100% - 8px);margin:4px;border:1px solid #f2ddb7;background:#fdf9f2;color:#333;padding:3px;font:10pt/1.35 "MS PGothic","ＭＳ Ｐゴシック",sans-serif}.old-form input{min-height:22px}.old-form textarea{min-height:88px;resize:vertical}.form-help{min-height:18px;margin:0;padding:4px 8px;color:#6b5a4d;font-size:10px}.old-form button{justify-self:center;margin:5px}.diary-photo-field{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px;padding:2px}.diary-photo-field input{grid-column:1/-1}.diary-photo-field img{grid-column:1;width:76px;max-height:76px;border:1px solid #c79550;object-fit:contain}.diary-photo-field button{grid-column:2}.diary-photo-status{margin:4px 8px;border:1px solid #66a56b;background:#effbea;padding:5px;text-align:center;font-size:10px}.diary-entry{background:#fff}.entry-meta{margin:0 0 8px;border-bottom:1px solid #e5a34c;background:#fff4e0;padding:4px;color:#6b5a4d;font-size:10px}.entry-body{min-height:140px;padding:6px;white-space:pre-wrap;overflow-wrap:anywhere}.diary-photos{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));align-items:start;gap:5px;margin:6px}.diary-photos img{display:block;width:100%;height:auto;max-height:360px;border:1px solid #c79550;background:#fff;object-fit:contain}.comments{margin-top:7px;background:#fff4e0}.comment-row,.message-row{display:flex;gap:7px;border-bottom:1px solid #e5c994;background:#fff;padding:6px}.comment-row p,.message-row p,.message-row h2{margin:0 0 4px}.message-row h2{font-size:12px}.comment-meta{color:#6b5a4d;font-size:10px}.compact-form{margin-top:7px}.explanation{border:1px solid #e5a34c;background:#fff4e0;padding:8px}.access-count{text-align:center;font-weight:bold;font-variant-numeric:tabular-nums}.footprint-row{display:grid;grid-template-columns:190px minmax(0,1fr);gap:8px;border-bottom:1px solid #e5c994;padding:5px;font-variant-numeric:tabular-nums}.community-grid{display:grid;gap:5px}.community-card,.community-head{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;border-bottom:1px solid #e5c994;padding:7px}.community-card h2,.community-card p{margin:0 0 4px}.community-card h2{font-size:12px}.community-mark{display:grid;place-items:center;width:64px;height:64px;border:1px solid #c79550;background:#fff4e0;color:#b56624;font:bold 11px/1 sans-serif}.large-mark{width:90px;height:90px;font-size:13px}.topic-list{margin-top:7px}.topic-row{border-bottom:1px solid #e5c994;padding:7px}.topic-row p{margin:4px 0}
 .mixi-footer{width:720px;margin:12px 0 0;border-top:1px dotted #d3b16d;background:#f9a443;color:#5f4938;text-align:center;font:10px/1.5 Arial,"MS PGothic",sans-serif}.mixi-footer nav{background:#fec977;padding:4px}.mixi-footer p{margin:0;border-top:1px solid #ffcc99;padding:6px}.mixi-footer small{display:block;background:#fff;padding:4px;color:#766b63}.mixi-footer a{color:#333}.mixi-footer button{min-height:18px;border:1px solid #877065;background:#fff4e0;color:#333;padding:1px 5px;font-size:10px;cursor:pointer}
 .login-page{width:720px;margin:0;border:0;background:#fff}.login-header{display:grid;grid-template-columns:247px 473px;height:96px;border-bottom:1px dotted #d3b16d}.login-logo{display:flex;align-items:end;gap:6px;padding:20px 18px 11px;border-top:6px solid #f69223;border-radius:58% 0 0;font:58px/1 Georgia,"Times New Roman",serif;letter-spacing:-5px}.login-logo small{margin-bottom:5px;border-radius:12px;background:#f69223;color:#fff;font:bold 10px/1 Arial,sans-serif;letter-spacing:0;padding:5px 8px}.login-header p{display:flex;align-items:center;justify-content:center;margin:0;border-top:7px solid #f69223;background:repeating-linear-gradient(135deg,#ffb84e 0 2px,#f99b2b 2px 4px);color:#fff;text-shadow:0 1px #b5671e;font-weight:bold}.login-nav{display:grid;grid-template-columns:repeat(4,1fr);width:473px;height:31px;margin:-32px 0 1px 247px;position:relative;z-index:1}.login-nav a{display:flex;align-items:center;justify-content:center;border-right:1px solid #ffd28d;background:linear-gradient(#f9a943,#ed8b1d);color:#fff!important;text-decoration:none;font:bold 10px/1 sans-serif}.meadow-login{position:relative;width:720px;height:350px;background:#61b7ed url("./assets/mixi/login-meadow.webp") center 60%/cover no-repeat}.meadow-copy{position:absolute;top:48px;left:54px;display:grid;border-left:2px solid #fff;padding-left:8px;color:#fff;text-shadow:0 1px 2px #315d73}.meadow-copy span{font:10px/1.2 Arial,sans-serif;letter-spacing:2px}.meadow-copy strong{font:bold 22px/1.2 Georgia,serif}.login-form{position:absolute;top:49px;right:15px;display:grid;gap:3px;width:200px;min-height:160px;border:1px solid #d3b16d;background:rgba(253,249,242,.94);padding:10px 14px 7px}.login-form label:not(.remember-login){display:grid;gap:2px;color:#76593b;font-size:10px;font-weight:bold}.login-form input{min-width:0;height:20px;border:1px solid #f2ddb7;background:#fdf9f2;color:#333;padding:1px 3px}.remember-login{display:flex;align-items:center;gap:3px;font-size:10px}.remember-login input{width:13px;height:13px}.login-form button{justify-self:center;width:93px;height:20px;border:1px solid #877065;background:linear-gradient(#8e8178,#4d403a);color:#fff;font-weight:bold;cursor:pointer}.login-form a{justify-self:center;font-size:10px}.reenactment-wide{width:720px;margin:0;border-top:1px dotted #d3b16d;padding:4px;color:#766b63;text-align:center;font-size:10px}
 @media(hover:hover) and (pointer:fine){.old-button:hover,.old-form button:hover,.mixi-footer button:hover{background:#6b574d}.utility-nav a:hover{background:#fff4e0}.global-nav a:hover,.login-nav a:hover{background:#c87820}}
 @media(max-width:719px){.mixi-page{width:100%;overflow-x:hidden;padding:4px;font-size:13px}.mixi-header,.login-page,.mixi-footer{width:100%}.brand-row,.login-header{grid-template-columns:40% 60%;height:82px}.mixi-logo,.login-logo{height:82px;padding:18px 8px 9px;font-size:38px;letter-spacing:-3px}.mixi-logo small,.login-logo small{font-size:8px;padding:4px}.brand-banner strong{font-size:13px}.brand-banner small{font-size:7px;letter-spacing:2px}.login-header p{font-size:11px;text-align:center}.global-nav,.login-nav{display:flex;width:60%;height:30px;margin:-31px 0 1px 40%;overflow-x:auto;padding:0}.global-nav a,.login-nav a{flex:0 0 80px}.utility-nav{justify-content:flex-start;width:100%;overflow-x:auto}.utility-nav a{flex:0 0 auto;padding:5px 9px}.mixi-layout,.mixi-layout.inner-layout{display:flex;flex-direction:column;width:100%;margin:6px 0}.main-column{order:1}.left-rail{order:2}.right-rail{order:3}.inner-layout .right-rail{display:none}.friend-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.profile-friends .friend-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.announcement{grid-template-columns:1fr}.update-row{grid-template-columns:1fr}.date-cell,.update-body{grid-column:1;margin-left:0}.profile-main{grid-template-columns:92px minmax(0,1fr)}.avatar-xlarge{width:86px;height:86px}.profile-data{grid-template-columns:64px minmax(0,1fr)}.old-form label{grid-template-columns:84px minmax(0,1fr)}.footprint-row{grid-template-columns:130px minmax(0,1fr)}.meadow-login{width:100%;height:560px;background-position:35% center}.login-form{top:14px;right:12px;left:12px;width:auto;min-height:230px;padding:12px}.login-form input{height:40px;font-size:16px}.login-form button{width:120px;height:40px}.meadow-copy{top:auto;bottom:28px;left:20px}.reenactment-wide{width:100%}}
 @media(pointer:coarse){.mixi-page a{min-height:32px}.utility-nav a,.global-nav a,.login-nav a{display:flex;align-items:center;justify-content:center;min-height:44px}.old-button,.old-form button,.mixi-footer button{min-height:44px}.friend-grid>a{display:grid}.login-form a{display:flex;align-items:center;min-height:32px}}
 @media(prefers-reduced-motion:reduce){.mixi-page *{transition-duration:0s!important}}
+.brand-banner{padding-bottom:30px}.brand-banner strong{margin-top:2px;font-size:13px}.brand-banner small{font-size:8px;letter-spacing:3px}
+.home-layout{grid-template-columns:260px minmax(0,310px) 134px;grid-template-rows:auto auto;align-items:start;column-gap:8px;row-gap:0}.home-layout>.announcement{grid-column:1/3;grid-row:1}.home-layout>.left-rail{grid-column:1;grid-row:2}.home-layout>.main-column{grid-column:2;grid-row:2}.home-layout>.right-rail{grid-column:3;grid-row:1/3}
+.home-layout .announcement{grid-template-columns:108px minmax(0,1fr) 136px;align-items:center;gap:5px;min-height:50px;padding:5px 7px;font-size:10px}.announcement strong{line-height:1.25}.announcement strong span{display:block}.announcement p{margin:0;line-height:1.35}.announcement-links{display:grid;gap:1px;padding-left:5px;border-left:1px solid #e5c994}.announcement-links a{white-space:nowrap}.announcement-links a::before{content:"◆";margin-right:3px;color:#8a765f;font-size:8px}
+.home-layout .profile-mini{gap:3px}.home-layout .profile-mini>.avatar-large{width:150px;height:150px}.home-layout .profile-mini>strong{font-size:10px;font-weight:normal}.home-layout .profile-mini>a::before{content:"⊞";margin-right:3px;color:#75695d;text-decoration:none}.home-layout .friend-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.home-layout .friend-grid .avatar-small{width:72px;height:72px}.home-layout .friend-grid>a{font-size:10px}.home-layout .friend-grid span{white-space:nowrap}
+.home-layout .panel-title{margin-bottom:5px;border-radius:3px;padding:3px 8px}.home-feed-table{margin:0 0 7px;border:5px solid #f3ddb6;background:#fff}.home-feed-group{display:grid;grid-template-columns:86px minmax(0,1fr);border-bottom:1px solid #e5a34c}.home-feed-group:last-child{border-bottom:0}.home-feed-label{display:grid;place-items:center;margin:0;border-right:1px solid #e5a34c;background:#fff4e0;color:#8e6128;padding:5px;font:bold 10px/1.25 "MS PGothic","ＭＳ Ｐゴシック",sans-serif;text-align:center}.home-feed-body{min-width:0}.home-feed-body .update-row{grid-template-columns:61px minmax(0,1fr);gap:3px;padding:2px 3px}.home-feed-body .date-cell{white-space:nowrap;font-size:9px}.home-feed-body .update-body{overflow:hidden;font-size:10px;line-height:1.3;white-space:nowrap;text-overflow:ellipsis}.home-feed-body .update-body a{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.home-feed-body .update-body span{font-size:9px}.home-feed-body .more-link{margin:2px 4px;text-align:right;font-size:9px}.home-diaries .date-cell::before{color:#258f59}.home-comments .date-cell::before{color:#d8a01f}.home-communities .date-cell::before{color:#d8482e}.home-reviews .date-cell::before{color:#2879b8}
+.home-layout .notice-box{padding:5px}.home-layout .notice-box>a{display:block;overflow:visible;font-size:10px;line-height:1.45;white-space:nowrap}.notice-box>.notice-birthday::before{color:#df6b24}.notice-box>.notice-event::before{color:#2f9c67}.notice-box>.notice-weather::before{color:#2879b8}
+.mixi-page a{white-space:nowrap}.global-nav a{font-size:9px}.home-layout .rail-box{background:repeating-linear-gradient(0deg,#fff 0 1px,#fff8ed 1px 3px)}.home-layout .profile-mini{background:repeating-linear-gradient(0deg,#fff 0 1px,#fff4e0 1px 3px)}
+@media(max-width:719px){.source-toggle{width:52px;min-width:52px;padding:0;font-size:0}.source-toggle::after{content:"</>";font:700 13px/1 var(--font-mono)}.home-layout{display:flex;width:100%;align-items:stretch;flex-direction:column}.home-layout>.announcement{order:0;width:100%}.home-layout>.main-column{order:1;width:100%}.home-layout>.left-rail{order:2;width:100%}.home-layout>.right-rail{order:3;width:100%}.home-layout .announcement{grid-template-columns:1fr}.announcement-links{padding:4px 0 0;border-top:1px solid #e5c994;border-left:0}.home-layout .friend-grid .avatar-small{width:44px;height:44px}.home-layout .profile-mini>.avatar-large{width:116px;height:116px}.home-feed-table{width:100%}.home-feed-group{grid-template-columns:78px minmax(0,1fr)}}
 ';
 print STYLE '
 .mixi-layout.wide-layout{grid-template-columns:minmax(0,720px)}
@@ -750,11 +894,11 @@ print STYLE '
 .community-data{display:grid;grid-template-columns:126px minmax(0,1fr);margin:0;border:6px solid #f3ddb6;background:#fff}.community-data dt,.community-data dd{margin:0;border-bottom:1px solid #e5a34c;padding:5px}.community-data dt{background:#fff4e0;color:#8e6128}.community-data dd{min-height:26px}
 .old-form select{width:calc(100% - 8px);margin:4px;border:1px solid #f2ddb7;background:#fdf9f2;color:#333;padding:3px;font:10pt/1.35 "MS PGothic","ＭＳ Ｐゴシック",sans-serif}.inline-options,.check-grid,.request-avatar{display:flex;align-items:center;min-height:30px;padding:5px;background:#fff}.check-grid{line-height:2;flex-wrap:wrap}.success-note{border:1px solid #66a56b;background:#effbea;padding:8px;text-align:center;font-weight:bold}
 .search-results,.review-list,.photo-editor,.community-search-form,.calendar-tools{margin-top:8px;border:6px solid #f3ddb6;background:#fff;padding:8px}.search-results h2,.review-list h2{margin:-8px -8px 8px;background:#967d60;color:#fff;padding:4px 8px;font-size:12px}.search-user-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}.search-user-grid>a{display:grid;justify-items:center;gap:3px;text-align:center;font-size:10px}.community-search-form p{margin:8px 0 0}.community-search-form input{border:1px solid #f2ddb7;background:#fdf9f2;padding:3px}
-.photo-editor{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;text-align:center}.photo-editor>div{display:grid;justify-items:center;gap:5px}.no-photo{display:grid!important;place-items:center;min-height:126px;background:#ffd79c;color:#fff;font:bold 22px/1.2 Arial,sans-serif}.photo-upload{display:flex;justify-content:center;gap:8px;margin:8px;border-top:1px solid #e5a34c;padding-top:10px}
-.registration-page{width:720px;margin:8px 0}.required-note{margin:0;border:6px solid #f3ddb6;background:#fff4e0;padding:5px;text-align:center}.register-button{position:absolute;top:214px;right:15px;display:grid!important;place-items:center;width:200px;height:24px;border:1px solid #d3b16d;background:linear-gradient(#fff,#f3ddb6);font-weight:bold;text-decoration:none!important}.login-footer-nav{width:720px;background:#fff;padding:5px;text-align:center;font-size:10px}.login-copyright{width:720px;margin:0;background:#ff9933;padding:3px;text-align:center;font-size:10px}
+.photo-editor{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;text-align:center}.photo-editor>div{display:grid;justify-items:center;gap:5px}.no-photo{display:grid!important;place-items:center;min-height:126px;background:#ffd79c;color:#fff;font:bold 22px/1.2 Arial,sans-serif}.photo-upload{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:8px;border-top:1px solid #e5a34c;padding-top:10px}.photo-upload input{max-width:260px}.photo-upload button{min-height:28px}.photo-status{margin:8px;border:1px solid #66a56b;background:#effbea;padding:7px;text-align:center;font-weight:bold}
+.registration-page{width:720px;margin:0}.required-note{margin:0;border:6px solid #f3ddb6;background:#fff4e0;padding:5px;text-align:center}.register-button{position:absolute;top:214px;right:15px;display:grid!important;place-items:center;width:200px;height:24px;border:1px solid #d3b16d;background:linear-gradient(#fff,#f3ddb6);font-weight:bold;text-decoration:none!important}.login-footer-nav{width:720px;background:#fff;padding:5px;text-align:center;font-size:10px}.login-copyright{width:720px;margin:0;background:#ff9933;padding:3px;text-align:center;font-size:10px}
 .calendar-tools{margin:0 0 7px;border-width:1px;background:#fff4e0}.month-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid #f69223;border-left:1px solid #f69223}.calendar-heading,.calendar-cell{border-right:1px solid #f69223;border-bottom:1px solid #f69223;padding:3px}.calendar-heading{background:#fff4e0;text-align:center;font-weight:bold}.calendar-heading.sunday{color:#d22}.calendar-heading.saturday{color:#258fb8}.calendar-cell{min-height:76px;background:#fff}.calendar-cell strong{display:block;color:#a65c22}.calendar-cell a{margin-top:4px;font-size:10px;white-space:normal}
 .diary-entry-grid{display:grid;grid-template-columns:88px minmax(0,1fr);gap:0;padding:0}.diary-date-column{display:grid;align-content:start;border-right:1px solid #e5a34c;background:#fff4e0;padding:7px;color:#8e6128;font-size:10px;text-align:center}.diary-content-column{min-width:0;padding:6px}.diary-content-column .entry-meta{margin:-6px -6px 5px}.diary-content-column .entry-body{margin:0}.calendar-empty{background:#fffaf3}
-@media(max-width:719px){.registration-page{width:100%;margin:6px 0}.register-button{top:250px;right:12px;left:12px;width:auto;height:38px}.login-footer-nav,.login-copyright{width:100%}.community-data{grid-template-columns:96px minmax(0,1fr)}.search-user-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.photo-editor{grid-template-columns:repeat(3,minmax(0,1fr))}.photo-editor .avatar-xlarge,.no-photo{width:84px;height:84px;min-height:84px}.month-calendar{font-size:10px}.calendar-cell{min-height:58px;padding:2px}.calendar-cell a{font-size:9px}.source-toggle{opacity:.88}}
+@media(max-width:719px){.registration-page{width:100%;margin:0}.register-button{top:250px;right:12px;left:12px;width:auto;height:38px}.login-footer-nav,.login-copyright{width:100%}.community-data{grid-template-columns:96px minmax(0,1fr)}.search-user-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.photo-editor{grid-template-columns:repeat(3,minmax(0,1fr))}.photo-editor .avatar-xlarge,.no-photo{width:84px;height:84px;min-height:84px}.month-calendar{font-size:10px}.calendar-cell{min-height:58px;padding:2px}.calendar-cell a{font-size:9px}.source-toggle{opacity:.88}}
 ';
 open APP, ">ui:#app-root";
 open ROUTE, "route:hash";
@@ -762,10 +906,14 @@ open CLOCK, "clock:60000";
 open DIARY_IN, "storage:local:perlscript-web/mixi/diaries-v2";
 open FOOT_IN, "storage:local:perlscript-web/mixi/footprints-v1";
 open COMM_IN, "storage:local:perlscript-web/mixi/communities-v1";
+open PROFILE_PHOTO_IN, "storage:local:perlscript-web/mixi/profile-photo-v1";
+open IMAGE, "stream:image";
 $now = <CLOCK>;
+$profile_photo = <PROFILE_PHOTO_IN>;
 load_data();
 do watch(ROUTE, "visit");
 do watch(CLOCK, "tick");
+do watch(IMAGE, "receive_image");
 visit();
 mount(APP, "view");
 </script>
@@ -783,6 +931,7 @@ const showError = error => {
   errorPanel.hidden = false;
 };
 PerlScript.setErrorHandler(showError);
+PerlScript.installImageAdapter();
 async function run() {
   errorPanel.hidden = true;
   runButton.disabled = true;

@@ -22,6 +22,7 @@ The normative contract is [Perl 1 Web Profile 1.0](./PERL1-WEB-PROFILE.md). The 
 | Scalars, arrays, hashes | Compatible profile | Bounded to documented literal, indexing, and assignment rules. |
 | Perl truth values | Compatible profile | True is `1`; false is empty string; string `"0"` is false. |
 | Subroutines and `@_` | Compatible profile | Globals plus dynamically scoped `@_`; no general `local`. |
+| `localtime` | Compatible profile | Nine-element list using the browser host's local timezone. |
 | Regex matching | Adapted | JavaScript RegExp engine and flags; `$1`–`$9` captures, no substitution. |
 | `open`, `select`, `print`, `<HANDLE>` | Adapted | Backed by memory or DOM filehandles. |
 | `watch`, `clear` | Browser extension | Explicitly non-historical. |
