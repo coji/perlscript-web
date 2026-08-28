@@ -96,6 +96,8 @@ const uninstallWebAdapters = PerlScript.installWebAdapters();
 
 This is the adapter used by the PerlGPT example. Call `uninstallWebAdapters()` when the surrounding application no longer needs the global stream registrations.
 
+Image uploads use the same asynchronous I/O boundary. `installImageAdapter()` registers `stream:image`; Perl sends a file-input selector, correlation ID, and resize constraints, then receives a bounded WebP data URL (JPEG on browsers without WebP canvas encoding) that it can persist through an ordinary `storage:` filehandle. The default mode center-crops a square avatar; `fit: "contain"` preserves the source aspect ratio for content images.
+
 Persistent browser values are ordinary files too. Reading returns the complete stored string; opening with `>` replaces it:
 
 ```perl

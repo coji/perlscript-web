@@ -11,20 +11,20 @@ for which no complete source exists.
 | Axis | Weight | Full-credit condition | Current |
 | --- | ---: | --- | ---: |
 | Evidence-backed screen coverage | 20 | Every screen family established by the collected material has a corresponding route | 19 |
-| Information architecture | 20 | Header, utility navigation, route-specific rails, panel order, and page relationships match the sources | 19 |
+| Information architecture | 20 | Header, utility navigation, route-specific rails, panel order, and page relationships match the sources | 18 |
 | Desktop geometry | 15 | 720 px canvas, 247/473 public header, 200 px login rail, and source-specific column layouts | 14 |
-| Color and typography | 15 | Archived CSS tokens, 10 pt system text, link states, form colors, and orange footer are preserved | 15 |
+| Color and typography | 15 | Archived CSS tokens, 10 pt system text, link states, form colors, and orange footer are preserved | 14 |
 | Period component fidelity | 15 | Dense title strips, table-like forms, tiny controls, calendars, image grids, and raster-era banner treatment | 13 |
 | Behavior | 10 | Route traversal and the source-supported diary, comments, footprints, community, search, invitation, and friend-request interactions work | 9 |
-| Modern safety | 5 | Responsive reflow, keyboard focus, touch targets, disclosure, and no horizontal page overflow | 4 |
-| **Total** | **100** |  | **93** |
+| Modern safety | 5 | Responsive reflow, keyboard focus, touch targets, disclosure, and no horizontal page overflow | 5 |
+| **Total** | **100** |  | **92** |
 
 ## Screen-family check
 
 | Screen | Reference | Result | Score |
 | --- | --- | --- | ---: |
 | Logged-out home | Wayback 2004-03-21 and 2005-01-01 | Exact public geometry and generated grass composition | 95 |
-| Member home | `sns_02_01.jpg` | Three-column dashboard, identity rail, streams, and dated shortcuts | 94 |
+| Member home | `sns_02_01.jpg` | Source-proportioned three-column dashboard; notice spans identity and stream columns; the central table restores diary, comment, community, and review categories | 92 |
 | Footprints | `sns_02_02.jpg`, `sns05_05.jpg` | Full-width chronology and access count | 94 |
 | Invitation | `sns_03_01.jpg`, `sns_03_02.jpg` | Invitation explanation, address, message, and completion state | 91 |
 | Registration | `sns_03_03.jpg` | Logged-out header and period table-form layout | 93 |
@@ -62,5 +62,8 @@ archive lacks a complete contemporary screenshot.
   assets.
 - Original authenticated raster ornaments and button images were not recovered;
   CSS recreates their geometry and sampled palette.
+- The member-home content is fictional and denser in names than the blurred
+  contemporary capture, although its category table, column proportions, profile
+  order, notice placement, marker colors, and dated shortcut rail follow it.
 - Complete contemporary screenshots for normal profile, standalone diary list,
   review, and message screens remain unavailable.

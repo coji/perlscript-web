@@ -20,6 +20,7 @@ for (const { name, source, expected } of [
   { name: "list expressions and array assignment", source: '@a = ("a", "b", 3); print @a;', expected: "ab3" },
   { name: "hash assignment and access", source: '%h = ("first", 1, "second", 2); $h{"third"} = 3; print $h{"first"}, $h{"third"};', expected: "13" },
   { name: "deterministic hash keys and values", source: '%h = ("first", 1, "second", 2); print keys(%h), ":", values(%h);', expected: "firstsecond:12" },
+  { name: "localtime list", source: '@t = localtime(0); print $#t;', expected: "8" },
   { name: "subroutine arguments through @_", source: 'sub greet { return "hi " . $_[0]; } print greet("web");', expected: "hi web" },
   { name: "nested calls restore caller @_", source: 'sub inner { return $_[0]; } sub outer { $before = $_[0]; $x = inner("inside"); return $before . ":" . $_[0] . ":" . $x; } print outer("outside");', expected: "outside:outside:inside" },
   { name: "statement modifiers", source: "print \"yes\" if 1; print \"no\" unless 1;", expected: "yes" },
